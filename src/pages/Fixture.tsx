@@ -34,7 +34,7 @@ export default function Fixture() {
   const [preview, setPreview] = React.useState<PreviewState>({ groups: [], matches: [] });
   const [viewMatches, setViewMatches] = React.useState<any[]>([]);
   const [error, setError] = React.useState<string | null>(null);
-  const [groupSize, setGroupSize] = React.useState<3 | 4>(3);
+  const [groupSize, setGroupSize] = React.useState<number>(3);
   const [previewTeams, setPreviewTeams] = React.useState<LeagueTeam[]>([]);
   const [isDoubleRound, setIsDoubleRound] = React.useState(false);
 
@@ -447,11 +447,15 @@ export default function Fixture() {
                     <span>Parejas por grupo</span>
                     <select
                       value={groupSize}
-                      onChange={(e) => setGroupSize(Number(e.target.value) as 3 | 4)}
+                      onChange={(e) => setGroupSize(Number(e.target.value))}
                       className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-200"
                     >
                       <option value={3}>3</option>
                       <option value={4}>4</option>
+                      <option value={5}>5</option>
+                      <option value={6}>6</option>
+                      <option value={7}>7</option>
+                      <option value={8}>8</option>
                     </select>
                   </div>
                   <Button onClick={() => handleGenerateGroups(groupSize)} disabled={busy}>

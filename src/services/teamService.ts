@@ -66,17 +66,31 @@ export const teamService = {
     if (!isMixed) {
       if (lowerCat.includes('damas') || lowerCat.includes('mujeres') || lowerCat.includes('femenino')) {
         query = query.in('gender', getDbGenderValues('female'));
-      } else if (lowerCat.includes('varones') || lowerCat.includes('hombres') || lowerCat.includes('masculino')) {
-        query = query.in('gender', getDbGenderValues('male'));
       }
+      // Si es varones, no filtramos por género para permitir que aparezcan mujeres habilitadas
     }
 
     const { data: players, error: playersError } = await query.order('last_name');
 
     if (playersError) throw new Error(mapSupabaseError(playersError));
 
+    // Función para normalizar categorías (ej: "4ta Varones" -> "4ta")
+    const normalizeCatName = (name: string) => {
+      return name.toLowerCase()
+        .replace(/varones|hombres|masculino/g, '')
+        .replace(/damas|mujeres|femenino/g, '')
+        .trim();
+    };
+
+    const targetBaseCat = normalizeCatName(lowerCat);
+
     return (players as Client[]).filter((p) => {
+      const p1Cat = p.categoria ? normalizeCatName(p.categoria) : '';
+      const p2Cat = p.categoria_secundaria ? normalizeCatName(p.categoria_secundaria) : '';
+      
       const matchesCategory = 
+        p1Cat === targetBaseCat || 
+        p2Cat === targetBaseCat ||
         p.categoria?.toLowerCase().trim() === lowerCat || 
         p.categoria_secundaria?.toLowerCase().trim() === lowerCat;
       

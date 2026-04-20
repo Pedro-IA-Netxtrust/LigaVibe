@@ -33,9 +33,8 @@ export function validatePairForCategory(categoryName: string, p1: Client, p2: Cl
   }
 
   if (lower.includes('varones') || lower.includes('hombres') || lower.includes('masculino')) {
-    if (!maleVals.includes(g1n) || !maleVals.includes(g2n)) {
-      return 'En esta categoría ambos jugadores deben ser hombres.';
-    }
+    // Permitir cualquier combinación (Mujeres pueden jugar en varones, Hombres ya están por defecto)
+    // Solo validamos que no sean dos hombres en Mixto (pero eso es otra rama del if)
     return null;
   }
 
