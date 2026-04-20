@@ -1,20 +1,32 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🎾 Liga Vibe 2026 - Tournament Management
 
-# Run and deploy your AI Studio app
+Sistema profesional para la gestión de torneos de Padel, desarrollado para la **Liga Vibe 2026 by Netxtrust**.
 
-This contains everything you need to run your app locally.
+## 🚀 Despliegue en Vercel
 
-View your app in AI Studio: https://ai.studio/apps/6ed97d49-2016-4010-8178-637e99b1fdf7
+Este proyecto está optimizado para desplegarse en [Vercel](https://vercel.com). Sigue estos pasos:
 
-## Run Locally
+1.  **Conecta tu Repo**: Importa este repositorio en el Dashboard de Vercel (https://github.com/Pedro-IA-Netxtrust/LigaVibe).
+2.  **Configura Variables de Entorno**: Agrega estas dos variables en los ajustes del proyecto:
+    *   `VITE_SUPABASE_URL`: Su URL de Supabase.
+    *   `VITE_SUPABASE_ANON_KEY`: Su clave anónima de Supabase.
+3.  **Configuración Automática**: Vercel detectará Vite y usará `npm run build` automáticamente. El archivo `vercel.json` incluido maneja las rutas de Single Page Application (SPA).
 
-**Prerequisites:**  Node.js
+## ✨ Características
 
+- ✅ **Fixture Dinámico**: Generación de grupos y ligas tipo Round Robin.
+- ✅ **Gestión de Resultados**: Carga flexible con sets opcionales (modo rápido) o detallado.
+- ✅ **Tabla de Posiciones**: Cálculo automático basado en puntos (3-2-1-0) y diferencia de sets/games.
+- ✅ **Zona de Peligro**: Reset completo de categorías para administradores.
+- ✅ **Exportación**: Compatible con WhatsApp y descarga de reportes en CSV.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🛠️ Tecnologías
+
+- **React 19** + **TypeScript**
+- **Vite 6** (Build ultra rápido)
+- **Tailwind CSS v4** (Diseño premium y moderno)
+- **Lucide React** (Iconografía)
+- **Supabase** (Backend as a Service)
+
+---
+*Desarrollado con ❤️ para Liga Vibe 2026*
