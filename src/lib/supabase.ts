@@ -1,11 +1,19 @@
-/// <reference types="vite/client" />
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Faltan las credenciales de Supabase (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY). Configúralas en el panel de Vercel.');
-}
+let supabaseInstance: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = new Proxy({} as SupabaseClient, {
+  get: (_, prop) => {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('❌ Error: Faltan las credenciales de Supabase (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).');
+      return null;
+    }
+    if (!supabaseInstance) {
+      supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+    }
+    return (supabaseInstance as any)[prop];
+  }
+});
