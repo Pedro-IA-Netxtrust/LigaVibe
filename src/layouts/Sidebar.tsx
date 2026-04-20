@@ -51,7 +51,12 @@ export function Sidebar({ activePage }: SidebarProps) {
           <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-purple-400 flex items-center justify-center font-bold text-white shrink-0 shadow-lg shadow-indigo-500/20">
             <Activity size={20} />
           </div>
-          {!isCollapsed && <span className="font-bold text-xl tracking-tight text-white whitespace-nowrap overflow-hidden text-ellipsis">VIBE EVENTS</span>}
+          {!isCollapsed && (
+            <div className="flex flex-col">
+              <span className="font-bold text-lg tracking-tight text-white leading-tight">LIGA VIBE 2026</span>
+              <span className="text-[10px] text-indigo-400 font-medium tracking-widest uppercase">by Netxtrust</span>
+            </div>
+          )}
         </div>
       </div>
 
