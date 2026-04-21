@@ -46,6 +46,7 @@ export default function Fixture() {
   const [activeTab, setActiveTab] = React.useState<'pending' | 'played'>('pending');
   const [playedGroupKey, setPlayedGroupKey] = React.useState<string>('__all__');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
+  const [pendingRoundKey, setPendingRoundKey] = React.useState<string>('all');
   const [modalMatch, setModalMatch] = React.useState<MatchRow | null>(null);
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
@@ -721,10 +722,30 @@ export default function Fixture() {
 
               {activeTab === 'pending' ? (
                 <Card title="Partidos Pendientes">
-                  <div className="space-y-4">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3">
+                      <label className="text-sm text-slate-400">Filtrar por Ronda</label>
+                      <select
+                        value={pendingRoundKey}
+                        onChange={(e) => setPendingRoundKey(e.target.value)}
+                        className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200"
+                      >
+                        <option value="all">Todas las rondas</option>
+                        {Array.from(new Set(viewMatches.filter(m => m.status !== 'jugado').map(m => m.round)))
+                          .sort((a, b) => a - b)
+                          .map(r => (
+                            <option key={r} value={r.toString()}>Ronda {r}</option>
+                          ))
+                        }
+                      </select>
+                    </div>
+
                     {(() => {
                       const pending = viewMatches.filter(m => m.status !== 'jugado');
                       const filtered = pending.filter(m => {
+                        const matchesRound = pendingRoundKey === 'all' || m.round.toString() === pendingRoundKey;
+                        if (!matchesRound) return false;
+
                         if (!searchQuery) return true;
                         const q = searchQuery.toLowerCase();
                         const t1 = m.team1;
@@ -744,7 +765,7 @@ export default function Fixture() {
 
                       if (filtered.length === 0) {
                         return <p className="text-sm text-slate-500 py-8 text-center italic">
-                          {searchQuery ? 'No coincides con la búsqueda.' : 'No hay partidos pendientes.'}
+                          {searchQuery || pendingRoundKey !== 'all' ? 'No coincides con la búsqueda o filtro.' : 'No hay partidos pendientes.'}
                         </p>;
                       }
 
