@@ -10,6 +10,11 @@ export type MatchRow = {
   team1?: { team_name?: string };
   team2?: { team_name?: string };
   status: string;
+  match_date?: string | null;
+  match_time?: string | null;
+  court_name?: string | null;
+  comment?: string | null;
+  winner_id?: string | null;
 };
 
 interface MatchResultModalProps {
@@ -20,15 +25,21 @@ interface MatchResultModalProps {
   onSubmit: (
     matchId: string,
     payload: {
-      mode: 'quick' | 'full';
-      winnerTeamId: string;
+      mode: 'quick' | 'full' | 'schedule';
+      winnerTeamId?: string | null;
       team1_sets?: number;
       team2_sets?: number;
       team1_games?: number;
       team2_games?: number;
+      match_date?: string | null;
+      match_time?: string | null;
+      court_name?: string | null;
+      comment?: string | null;
     }
   ) => Promise<void>;
 }
+
+const COURT_OPTIONS = ["Cancha 1", "Cancha 2", "Cancha 3", "Cancha 4", "Cancha 5", "Cancha 6"];
 
 export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: MatchResultModalProps) {
   const [winnerId, setWinnerId] = React.useState<string>('');
@@ -38,16 +49,24 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
   const [s2t2, setS2t2] = React.useState<number | ''>('');
   const [s3t1, setS3t1] = React.useState<number | ''>('');
   const [s3t2, setS3t2] = React.useState<number | ''>('');
+  const [date, setDate] = React.useState<string>('');
+  const [time, setTime] = React.useState<string>('');
+  const [court, setCourt] = React.useState<string>('');
+  const [comment, setComment] = React.useState<string>('');
 
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!match || !isOpen) return;
-    setWinnerId('');
+    setWinnerId(match.status === 'jugado' ? (match.winner_id || '') : '');
     setS1t1(''); setS1t2('');
     setS2t1(''); setS2t2('');
     setS3t1(''); setS3t2('');
+    setDate(match.match_date || '');
+    setTime(match.match_time || '');
+    setCourt(match.court_name || '');
+    setComment(match.comment || '');
     setError(null);
   }, [match, isOpen]);
 
@@ -57,16 +76,13 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
     e.preventDefault();
     setError(null);
 
-    if (!winnerId) {
-      setError('Selecciona el ganador. Es obligatorio.');
-      return;
-    }
-
+    const isSchedulingOnly = !winnerId;
+    
     let team1_sets = 0;
     let team2_sets = 0;
     let team1_games = 0;
     let team2_games = 0;
-    let finalMode: 'quick' | 'full' = 'quick';
+    let finalMode: 'quick' | 'full' | 'schedule' = isSchedulingOnly ? 'schedule' : 'quick';
 
     const hasSetInputs = s1t1 !== '' || s1t2 !== '' || s2t1 !== '' || s2t2 !== '';
     if (hasSetInputs) {
@@ -116,7 +132,11 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
         team1_sets,
         team2_sets,
         team1_games,
-        team2_games
+        team2_games,
+        match_date: date || null,
+        match_time: time || null,
+        court_name: court || null,
+        comment: comment || null
       });
       onSaved();
       onClose();
@@ -142,16 +162,18 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden"
+          className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] m-4"
         >
-          <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-white">Registrar resultado</h3>
+          <div className="p-6 border-b border-slate-800 flex justify-between items-center shrink-0">
+            <h3 className="text-lg font-bold text-white">
+              {match.status === 'jugado' ? 'Editar Resultado' : 'Programar / Resultado'}
+            </h3>
             <button type="button" onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
               <X size={22} />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
             {error && (
               <div className="p-3 bg-red-400/10 border border-red-500/20 rounded-xl flex gap-2 text-red-400 text-sm">
                 <AlertCircle size={18} className="shrink-0" />
@@ -167,13 +189,15 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
 
             <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Ganador del Partido (Obligatorio)</label>
+                <label className="text-sm font-medium text-slate-300">
+                  Ganador del Partido <span className="text-slate-500 font-normal italic">(opcional para programación)</span>
+                </label>
                 <select
                   value={winnerId}
                   onChange={(e) => setWinnerId(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 font-semibold"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 font-semibold focus:ring-2 focus:ring-indigo-500 transition-all"
                 >
-                  <option value="">-- Selecciona ganador --</option>
+                  <option value="">Solo programar (sin ganador)</option>
                   <option value={match.team1_id}>{match.team1?.team_name}</option>
                   <option value={match.team2_id}>{match.team2?.team_name}</option>
                 </select>
@@ -215,6 +239,51 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
                     <input type="number" min="0" max="9" value={s3t2} onChange={(e) => setS3t2(e.target.value ? Number(e.target.value) : '')} className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-center text-slate-200 text-sm font-bold w-0 min-w-0" />
                   </div>
                 </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Hora</label>
+                  <input
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Cancha / Sede</label>
+                <select
+                  value={court}
+                  onChange={(e) => setCourt(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200"
+                >
+                  <option value="">-- Selecciona cancha --</option>
+                  {COURT_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Comentario / Nota</label>
+                <textarea
+                  placeholder="Puntazo final, pareja se retiró, etc..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 min-h-[80px]"
+                />
+              </div>
               </div>
             </div>
 
@@ -223,7 +292,7 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
                 Cancelar
               </Button>
               <Button type="submit" isLoading={loading}>
-                Guardar
+                {winnerId ? 'Guardar Resultado' : 'Guardar Programación'}
               </Button>
             </div>
           </form>

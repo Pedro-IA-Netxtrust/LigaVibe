@@ -66,6 +66,10 @@ export interface LeagueMatch {
   team1_games: number;
   team2_sets: number;
   team2_games: number;
+  match_date?: string | null;
+  match_time?: string | null;
+  court_name?: string | null;
+  comment?: string | null;
   created_at: string;
   updated_at: string;
 }

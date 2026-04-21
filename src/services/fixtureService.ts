@@ -159,9 +159,19 @@ export const fixtureService = {
       .select(
         `
         *,
-        team1:league_teams!team1_id(id, team_name, player1:clients!player1_id(last_name), player2:clients!player2_id(last_name)),
-        team2:league_teams!team2_id(id, team_name, player1:clients!player1_id(last_name), player2:clients!player2_id(last_name)),
-        group:league_groups(group_name)
+        team1:league_teams!team1_id(
+          id, 
+          team_name, 
+          player1:clients!player1_id(first_name, last_name), 
+          player2:clients!player2_id(first_name, last_name)
+        ),
+        team2:league_teams!team2_id(
+          id, 
+          team_name, 
+          player1:clients!player1_id(first_name, last_name), 
+          player2:clients!player2_id(first_name, last_name)
+        ),
+        group:league_groups(id, group_name)
       `
       )
       .eq('league_category_id', categoryId)

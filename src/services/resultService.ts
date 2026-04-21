@@ -32,12 +32,16 @@ export const resultService = {
   async updateMatchResult(
     matchId: string,
     opts: {
-      mode: 'quick' | 'full';
-      winnerTeamId: string;
+      mode: 'quick' | 'full' | 'schedule';
+      winnerTeamId?: string | null;
       team1_sets?: number;
       team2_sets?: number;
       team1_games?: number;
       team2_games?: number;
+      match_date?: string | null;
+      match_time?: string | null;
+      court_name?: string | null;
+      comment?: string | null;
     }
   ) {
     const { data: m, error: fe } = await supabase
@@ -49,38 +53,54 @@ export const resultService = {
     if (fe || !m) throw new Error(mapSupabaseError(fe || new Error('Partido no encontrado.')));
     await this.assertCategoryAllowsResults(m.league_category_id);
 
-    let team1_sets = 2;
-    let team2_sets = 0;
-    let team1_games = 6;
-    let team2_games = 0;
+    const isResult = opts.winnerTeamId && opts.mode !== 'schedule';
+    
+    let updatePayload: any = {
+      match_date: opts.match_date,
+      match_time: opts.match_time,
+      court_name: opts.court_name,
+      comment: opts.comment,
+    };
 
-    if (opts.mode === 'full') {
-      team1_sets = opts.team1_sets ?? 0;
-      team2_sets = opts.team2_sets ?? 0;
-      team1_games = opts.team1_games ?? 0;
-      team2_games = opts.team2_games ?? 0;
-    } else if (opts.winnerTeamId === m.team2_id) {
-      team1_sets = 0;
-      team2_sets = 2;
-      team1_games = 0;
-      team2_games = 6;
-    }
+    if (isResult) {
+      let team1_sets = 2;
+      let team2_sets = 0;
+      let team1_games = 6;
+      let team2_games = 0;
 
-    const { error } = await supabase
-      .from('league_matches')
-      .update({
+      if (opts.mode === 'full') {
+        team1_sets = opts.team1_sets ?? 0;
+        team2_sets = opts.team2_sets ?? 0;
+        team1_games = opts.team1_games ?? 0;
+        team2_games = opts.team2_games ?? 0;
+      } else if (opts.winnerTeamId === m.team2_id) {
+        team1_sets = 0;
+        team2_sets = 2;
+        team1_games = 0;
+        team2_games = 6;
+      }
+
+      updatePayload = {
+        ...updatePayload,
         winner_id: opts.winnerTeamId,
         team1_sets,
         team2_sets,
         team1_games,
         team2_games,
         status: 'jugado'
-      })
+      };
+    }
+
+    const { error } = await supabase
+      .from('league_matches')
+      .update(updatePayload)
       .eq('id', matchId);
 
     if (error) throw new Error(mapSupabaseError(error));
 
-    await this.recalculateStandings(m.league_category_id);
+    if (isResult) {
+      await this.recalculateStandings(m.league_category_id);
+    }
   },
 
   async recalculateStandings(categoryId: string) {

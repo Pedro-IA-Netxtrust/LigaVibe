@@ -9,6 +9,8 @@ import { fixtureService } from '../services/fixtureService';
 import { computeStandingsFromMatches, ComputedStanding } from '../utils/standingsCalculator';
 import { MatchResultModal, MatchRow } from '../components/results/MatchResultModal';
 import { cn } from '../lib/utils';
+import { motion, AnimatePresence } from 'motion/react';
+import { Share2 } from 'lucide-react';
 
 export default function Standings() {
   const { categories, loading: loadingCats } = useCategories();
@@ -109,6 +111,26 @@ export default function Standings() {
     }
   };
 
+  const handleCopyGroup = () => {
+    if (standingsRows.length === 0) return;
+    
+    const catName = categories.find(c => c.id === categoryId)?.name || 'Categoría';
+    const groupLabel = groupOptions.find(o => o.key === groupKey)?.label || 'Grupo';
+    
+    let text = `🏆 *${catName.toUpperCase()}*\n`;
+    text += `👥 *${groupLabel.toUpperCase()}*\n\n`;
+    
+    standingsRows.forEach((r, idx) => {
+      text += `${idx + 1}. ${r.team_name}\n`;
+    });
+    
+    text += `\n_Liga Vibe Sport_`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      alert('✅ Lista del grupo copiada al portapapeles. ¡Listo para pegar!');
+    });
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex border-b border-slate-800 overflow-x-auto">
@@ -121,13 +143,18 @@ export default function Standings() {
               setGroupKey('__all__');
             }}
             className={cn(
-              'px-6 py-4 text-sm font-medium shrink-0 relative',
-              categoryId === c.id ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+              'px-6 py-4 text-sm font-semibold transition-all duration-200 shrink-0 relative',
+              categoryId === c.id 
+                ? 'text-indigo-400 bg-indigo-500/5' 
+                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
             )}
           >
             {c.name}
             {categoryId === c.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />
+              <motion.div 
+                layoutId="activeCategory"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" 
+              />
             )}
           </button>
         ))}
@@ -160,6 +187,17 @@ export default function Standings() {
               </option>
             ))}
           </select>
+          {groupKey !== '__all__' && groupKey !== '__liga__' && standingsRows.length > 0 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleCopyGroup}
+              title="Copiar lista de parejas de este grupo"
+            >
+              <Share2 size={14} className="mr-1.5" />
+              Copiar Lista
+            </Button>
+          )}
         </div>
         {canEdit && (
           <Button
@@ -237,13 +275,13 @@ export default function Standings() {
                   'PJ',
                   'PG',
                   'PP',
-                  'Pts',
                   'SF',
                   'SC',
                   'DS',
                   'GF',
                   'GC',
-                  'DG'
+                  'DG',
+                  'Pts'
                 ]}
               >
                 {standingsRows.map((r, idx) => {
@@ -256,13 +294,13 @@ export default function Standings() {
                       <TableCell>{r.played}</TableCell>
                       <TableCell>{r.won}</TableCell>
                       <TableCell>{r.lost}</TableCell>
-                      <TableCell className="text-indigo-400 font-bold">{r.points}</TableCell>
                       <TableCell>{r.sets_for}</TableCell>
                       <TableCell>{r.sets_against}</TableCell>
                       <TableCell>{ds >= 0 ? `+${ds}` : ds}</TableCell>
                       <TableCell>{r.games_for}</TableCell>
                       <TableCell>{r.games_against}</TableCell>
                       <TableCell>{dg >= 0 ? `+${dg}` : dg}</TableCell>
+                      <TableCell className="bg-indigo-500/10 text-indigo-400 font-black text-center border-l border-indigo-500/20">{r.points}</TableCell>
                     </TableRow>
                   );
                 })}

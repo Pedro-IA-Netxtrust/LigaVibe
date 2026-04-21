@@ -15,14 +15,20 @@ import {
   Copy,
   Download,
   CheckCircle2,
-  Clock
+  Clock,
+  Share2,
+  Search,
+  X as CloseIcon
 } from 'lucide-react';
 import { useCategories } from '../hooks/useTeams';
 import { fixtureService } from '../services/fixtureService';
+import { resultService } from '../services/resultService';
 import { teamService } from '../services/teamService';
 import { FixtureEngine, GroupConfig } from '../utils/fixtureEngine';
 import { cn } from '../lib/utils';
-import { LeagueTeam } from '../types';
+import { LeagueTeam, LeagueMatch } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { MatchResultModal, MatchRow } from '../components/results/MatchResultModal';
 
 type PreviewState = { groups: GroupConfig[]; matches: Partial<any>[] };
 
@@ -37,6 +43,10 @@ export default function Fixture() {
   const [groupSize, setGroupSize] = React.useState<number>(3);
   const [previewTeams, setPreviewTeams] = React.useState<LeagueTeam[]>([]);
   const [isDoubleRound, setIsDoubleRound] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<'pending' | 'played'>('pending');
+  const [playedGroupKey, setPlayedGroupKey] = React.useState<string>('__all__');
+  const [searchQuery, setSearchQuery] = React.useState<string>('');
+  const [modalMatch, setModalMatch] = React.useState<MatchRow | null>(null);
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const n = status?.teamCount ?? 0;
@@ -312,13 +322,18 @@ export default function Fixture() {
             type="button"
             onClick={() => setSelectedCategoryId(cat.id)}
             className={cn(
-              'px-6 py-4 text-sm font-medium transition-all relative shrink-0',
-              selectedCategoryId === cat.id ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+              'px-6 py-4 text-sm font-semibold transition-all duration-200 shrink-0 relative',
+              selectedCategoryId === cat.id 
+                ? 'text-indigo-400 bg-indigo-500/5' 
+                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
             )}
           >
             {cat.name}
             {selectedCategoryId === cat.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+              <motion.div 
+                layoutId="activeCategory"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" 
+              />
             )}
           </button>
         ))}
@@ -512,6 +527,20 @@ export default function Fixture() {
                             </option>
                           ))}
                         </select>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full mt-2 text-[10px] h-7"
+                          onClick={() => {
+                            const text = `🏆 *${selectedCategory?.name || 'Categoría'}*\n👥 *${group.groupName}*\n\n` + 
+                              group.teams.map((t: any, i: number) => `${i + 1}. ${t.team_name}`).join('\n') +
+                              `\n\n_Vibe Events_`;
+                            navigator.clipboard.writeText(text);
+                            alert('✅ Grupos copiados al portapapeles');
+                          }}
+                        >
+                          <Share2 size={12} className="mr-1" /> Copiar Lista
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -569,7 +598,19 @@ export default function Fixture() {
                     </select>
                   </TableCell>
                   <TableCell>
-                    <span className="badge badge-secondary">PENDIENTE</span>
+                    {m.status === 'jugado' ? (
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 uppercase font-bold">
+                        Finalizado
+                      </span>
+                    ) : m.match_date || m.match_time || m.court_name ? (
+                      <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full border border-indigo-500/20 uppercase font-bold">
+                        Programado
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded-full border border-slate-500/20 uppercase font-bold">
+                        Sin programar
+                      </span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -628,33 +669,302 @@ export default function Fixture() {
                 </div>
               </div>
 
-              <Card title="Partidos del torneo">
-                <Table headers={['Grupo', 'Ronda', 'Pareja 1', '', 'Pareja 2', 'Sets', 'Estado']}>
-                  {viewMatches.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="font-bold text-indigo-400">{m.group?.group_name || 'Liga'}</TableCell>
-                      <TableCell className="text-slate-500 font-mono">R{m.round}</TableCell>
-                      <TableCell className={`font-bold italic ${m.winner_id === m.team1_id ? 'text-emerald-400' : 'text-white'}`}>{m.team1?.team_name}</TableCell>
-                      <TableCell className="text-slate-600 font-bold">VS</TableCell>
-                      <TableCell className={`font-bold italic ${m.winner_id === m.team2_id ? 'text-emerald-400' : 'text-white'}`}>{m.team2?.team_name}</TableCell>
-                      <TableCell className="font-mono text-center text-lg">
-                        {m.status === 'jugado' ? (
-                          <span className="text-white font-bold">{m.team1_sets}<span className="text-slate-600 mx-1">-</span>{m.team2_sets}</span>
-                        ) : '—'}
-                      </TableCell>
-                      <TableCell>
-                        {m.status === 'pendiente' && <span className="badge badge-secondary">PENDIENTE</span>}
-                        {m.status === 'jugado' && <span className="badge badge-primary">FINALIZADO</span>}
-                        {m.status === 'live' && <span className="badge bg-red-500/10 text-red-500">EN VIVO</span>}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </Table>
-              </Card>
+              <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
+                <div className="flex border-b border-slate-800 flex-1 w-full md:w-auto">
+                  <button
+                    onClick={() => setActiveTab('pending')}
+                    className={cn(
+                      'px-6 py-3 text-sm font-medium relative',
+                      activeTab === 'pending' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock size={16} /> Próximos Partidos
+                    </div>
+                    {activeTab === 'pending' && <motion.div layoutId="subtab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('played')}
+                    className={cn(
+                      'px-6 py-3 text-sm font-medium relative',
+                      activeTab === 'played' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={16} /> Resultados
+                    </div>
+                    {activeTab === 'played' && <motion.div layoutId="subtab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
+                  </button>
+                </div>
+
+                <div className="relative w-full md:w-80">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                    <Search size={16} />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Buscar pareja o jugador..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300"
+                    >
+                      <CloseIcon size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {activeTab === 'pending' ? (
+                <Card title="Partidos Pendientes">
+                  <div className="space-y-4">
+                    {(() => {
+                      const pending = viewMatches.filter(m => m.status !== 'jugado');
+                      const filtered = pending.filter(m => {
+                        if (!searchQuery) return true;
+                        const q = searchQuery.toLowerCase();
+                        const t1 = m.team1;
+                        const t2 = m.team2;
+                        const matchT1 = t1?.team_name?.toLowerCase().includes(q) || 
+                                       t1?.player1?.first_name?.toLowerCase().includes(q) || 
+                                       t1?.player1?.last_name?.toLowerCase().includes(q) ||
+                                       t1?.player2?.first_name?.toLowerCase().includes(q) || 
+                                       t1?.player2?.last_name?.toLowerCase().includes(q);
+                        const matchT2 = t2?.team_name?.toLowerCase().includes(q) || 
+                                       t2?.player1?.first_name?.toLowerCase().includes(q) || 
+                                       t2?.player1?.last_name?.toLowerCase().includes(q) ||
+                                       t2?.player2?.first_name?.toLowerCase().includes(q) || 
+                                       t2?.player2?.last_name?.toLowerCase().includes(q);
+                        return matchT1 || matchT2;
+                      });
+
+                      if (filtered.length === 0) {
+                        return <p className="text-sm text-slate-500 py-8 text-center italic">
+                          {searchQuery ? 'No coincides con la búsqueda.' : 'No hay partidos pendientes.'}
+                        </p>;
+                      }
+
+                      return (
+                        <Table headers={['Grupo', 'Ronda', 'Pareja 1', '', 'Pareja 2', 'Estado', 'Acción']}>
+                          {filtered.map((m) => (
+                            <TableRow key={m.id}>
+                              <TableCell className="font-bold text-indigo-400">{m.group?.group_name || 'Liga'}</TableCell>
+                              <TableCell className="text-slate-500 font-mono">R{m.round}</TableCell>
+                              <TableCell className="font-bold text-white italic">{m.team1?.team_name}</TableCell>
+                              <TableCell className="text-slate-600 font-bold">VS</TableCell>
+                              <TableCell className="font-bold text-white italic">{m.team2?.team_name}</TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  {m.status === 'jugado' ? (
+                                    <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 uppercase font-bold w-fit">
+                                      Finalizado
+                                    </span>
+                                  ) : m.status === 'live' ? (
+                                    <span className="text-[10px] bg-red-500/20 text-red-500 px-2 py-0.5 rounded border border-red-500/20 uppercase font-bold w-fit animate-pulse">
+                                      EN VIVO
+                                    </span>
+                                  ) : m.match_date || m.match_time || m.court_name ? (
+                                    <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/20 uppercase font-bold w-fit">
+                                      Programado
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded border border-slate-500/20 uppercase font-bold w-fit">
+                                      Sin programar
+                                    </span>
+                                  )}
+                                  
+                                  {(m.match_date || m.match_time || m.court_name) && (
+                                    <div className="text-[10px] text-slate-400 leading-tight">
+                                      {m.match_date} {m.match_time}
+                                      {m.court_name && <div className="text-indigo-400/80">{m.court_name}</div>}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant={m.match_date || m.match_time || m.court_name ? "secondary" : "secondary"}
+                                  onClick={() =>
+                                    setModalMatch({
+                                      id: m.id,
+                                      team1_id: m.team1_id,
+                                      team2_id: m.team2_id,
+                                      team1: m.team1,
+                                      team2: m.team2,
+                                      status: m.status,
+                                      match_date: m.match_date,
+                                      match_time: m.match_time,
+                                      court_name: m.court_name,
+                                      comment: m.comment,
+                                      winner_id: m.winner_id
+                                    })
+                                  }
+                                >
+                                  {m.match_date || m.match_time || m.court_name ? 'Cargar / Editar' : 'Programar'}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </Table>
+                      );
+                    })()}
+                  </div>
+                </Card>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm text-slate-400">Filtrar por Grupo</label>
+                    <select
+                      value={playedGroupKey}
+                      onChange={(e) => setPlayedGroupKey(e.target.value)}
+                      className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200"
+                    >
+                      <option value="__all__">Todos los grupos</option>
+                      {Array.from(new Set(viewMatches.map(m => m.group?.id).filter(id => id))).map(gid => {
+                        const gname = viewMatches.find(m => m.group?.id === gid)?.group?.group_name;
+                        return <option key={gid} value={gid}>{gname}</option>
+                      })}
+                    </select>
+                  </div>
+
+                  {(() => {
+                    const playedMatches = viewMatches.filter(m => m.status === 'jugado');
+                    const filtered = playedMatches.filter(m => {
+                      const matchesGroup = playedGroupKey === '__all__' || m.league_group_id === playedGroupKey;
+                      if (!matchesGroup) return false;
+                      
+                      if (!searchQuery) return true;
+                      const q = searchQuery.toLowerCase();
+                      const t1 = m.team1;
+                      const t2 = m.team2;
+                      const matchT1 = t1?.team_name?.toLowerCase().includes(q) || 
+                                     t1?.player1?.first_name?.toLowerCase().includes(q) || 
+                                     t1?.player1?.last_name?.toLowerCase().includes(q) ||
+                                     t1?.player2?.first_name?.toLowerCase().includes(q) || 
+                                     t1?.player2?.last_name?.toLowerCase().includes(q);
+                      const matchT2 = t2?.team_name?.toLowerCase().includes(q) || 
+                                     t2?.player1?.first_name?.toLowerCase().includes(q) || 
+                                     t2?.player1?.last_name?.toLowerCase().includes(q) ||
+                                     t2?.player2?.first_name?.toLowerCase().includes(q) || 
+                                     t2?.player2?.last_name?.toLowerCase().includes(q);
+                      return matchT1 || matchT2;
+                    });
+                    
+                    const groups = Array.from(new Set(filtered.map(m => m.group?.group_name || 'Liga Única'))).sort();
+
+                    if (filtered.length === 0) {
+                      return (
+                        <Card>
+                          <p className="text-sm text-slate-500 py-8 text-center italic">No hay resultados registrados en este filtro.</p>
+                        </Card>
+                      );
+                    }
+
+                    return groups.map(gName => (
+                      <Card key={gName} title={`Resultados ${gName}`}>
+                        <Table headers={[
+                          'Ronda', 
+                          'Pareja 1', 
+                          'Pareja 2', 
+                          'Sets', 
+                          'Ganador', 
+                          ...(filtered.some(m => m.match_date || m.match_time || m.court_name || m.comment) 
+                              ? ['Info Adicional'] 
+                              : []),
+                          'Acción'
+                        ]}>
+                          {filtered
+                            .filter(m => (m.group?.group_name || 'Liga Única') === gName)
+                            .map((m) => {
+                              const p1 = m.team1?.team_name || '?';
+                              const p2 = m.team2?.team_name || '?';
+                              const winner = m.winner_id === m.team1_id ? p1 : p2;
+                              const hasExtra = m.match_date || m.match_time || m.court_name || m.comment;
+                              
+                              return (
+                                <TableRow key={m.id}>
+                                  <TableCell className="text-slate-500 font-mono text-xs">R{m.round}</TableCell>
+                                  <TableCell className={cn("font-bold italic", m.winner_id === m.team1_id ? "text-emerald-400" : "text-white")}>
+                                    {p1}
+                                  </TableCell>
+                                  <TableCell className={cn("font-bold italic", m.winner_id === m.team2_id ? "text-emerald-400" : "text-white")}>
+                                    {p2}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-center font-bold text-indigo-400">
+                                    {m.team1_sets}-{m.team2_sets}
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-bold uppercase">
+                                      Ganó {winner}
+                                    </span>
+                                  </TableCell>
+                                  {filtered.some(f => f.match_date || f.match_time || f.court_name || f.comment) && (
+                                    <TableCell>
+                                      <div className="text-[10px] flex flex-col gap-0.5">
+                                        {(m.match_date || m.match_time) && (
+                                          <span className="text-slate-300 font-medium">
+                                            {m.match_date || ''} {m.match_time || ''}
+                                          </span>
+                                        )}
+                                        {m.court_name && (
+                                          <span className="text-indigo-400">Cancha: {m.court_name}</span>
+                                        )}
+                                        {m.comment && (
+                                          <span className="text-slate-500 italic max-w-[150px] truncate" title={m.comment}>
+                                            "{m.comment}"
+                                          </span>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                  )}
+                                  <TableCell>
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => {
+                                        setModalMatch({
+                                          id: m.id,
+                                          team1_id: m.team1_id,
+                                          team2_id: m.team2_id,
+                                          team1: m.team1,
+                                          team2: m.team2,
+                                          status: m.status,
+                                          match_date: m.match_date,
+                                          match_time: m.match_time,
+                                          court_name: m.court_name,
+                                          comment: m.comment
+                                        });
+                                      }}
+                                    >
+                                      Editar
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                        </Table>
+                      </Card>
+                    ));
+                  })()}
+                </div>
+              )}
             </>
           )}
         </div>
       ) : null}
+
+      <MatchResultModal
+        isOpen={!!modalMatch}
+        match={modalMatch}
+        onClose={() => setModalMatch(null)}
+        onSaved={loadStatusAndData}
+        onSubmit={(id, payload) => resultService.updateMatchResult(id, payload)}
+      />
     </div>
   );
 }
