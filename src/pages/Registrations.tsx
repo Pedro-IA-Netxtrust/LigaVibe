@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   Circle,
   AlertCircle,
-  ShieldAlert
+  ShieldAlert,
+  Search
 } from 'lucide-react';
 import { useTeams, useCategories } from '../hooks/useTeams';
 import { TeamModal } from '../components/registrations/TeamModal';
