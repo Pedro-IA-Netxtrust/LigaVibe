@@ -29,6 +29,7 @@ import { cn } from '../lib/utils';
 import { LeagueTeam, LeagueMatch } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { MatchResultModal, MatchRow } from '../components/results/MatchResultModal';
+import { computeStandingsFromMatches } from '../utils/standingsCalculator';
 
 type PreviewState = { groups: GroupConfig[]; matches: Partial<any>[] };
 
@@ -43,10 +44,9 @@ export default function Fixture() {
   const [groupSize, setGroupSize] = React.useState<number>(3);
   const [previewTeams, setPreviewTeams] = React.useState<LeagueTeam[]>([]);
   const [isDoubleRound, setIsDoubleRound] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<'pending' | 'played'>('pending');
-  const [playedGroupKey, setPlayedGroupKey] = React.useState<string>('__all__');
+  const [activeTab, setActiveTab] = React.useState<'structure' | 'played'>('structure');
+  const [selectedGroupKey, setSelectedGroupKey] = React.useState<string>('__all__');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
-  const [pendingRoundKey, setPendingRoundKey] = React.useState<string>('all');
   const [modalMatch, setModalMatch] = React.useState<MatchRow | null>(null);
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
@@ -228,6 +228,40 @@ export default function Fixture() {
     }
   };
 
+  const handleGeneratePlayoff = async () => {
+    if (!selectedCategoryId) return;
+    const teamsToPick = window.confirm('¿Generar Cuartos de Final (Top 8)? Cancele para generar Semifinales (Top 4).') ? 8 : 4;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      const m = await fixtureService.getMatchesWithTeams(selectedCategoryId);
+      const allTeams = await teamService.getByCategoryId(selectedCategoryId);
+      const names: Record<string, string> = {};
+      allTeams.forEach(t => names[t.id] = t.team_name);
+      
+      const finished = m.filter(x => x.status === 'jugado');
+      const standings = computeStandingsFromMatches(finished, names);
+      
+      const topIds = standings.slice(0, teamsToPick).map(s => s.league_team_id);
+      const topTeams = allTeams.filter(t => topIds.includes(t.id))
+        .sort((a, b) => topIds.indexOf(a.id) - topIds.indexOf(b.id));
+
+      if (topTeams.length < 2) {
+        throw new Error('No hay suficientes equipos con partidos jugados para generar un playoff.');
+      }
+
+      const playoffMatches = FixtureEngine.generatePlayoffs(topTeams, selectedCategoryId);
+      await fixtureService.savePlayoffMatches(playoffMatches);
+      await loadStatusAndData();
+      alert('¡Playoffs generados con éxito!');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCopySummary = () => {
     if (!viewMatches || viewMatches.length === 0) return;
 
@@ -392,6 +426,12 @@ export default function Fixture() {
             <Button variant="secondary" size="md" onClick={handleCloseFixture} disabled={busy}>
               <Lock size={18} className="mr-2" />
               Cerrar fixture
+            </Button>
+          )}
+          {status?.state === 'closed' && (
+            <Button variant="primary" size="md" onClick={handleGeneratePlayoff} disabled={busy}>
+              <Trophy size={18} className="mr-2" />
+              Generar Playoff
             </Button>
           )}
         </div>
@@ -562,7 +602,7 @@ export default function Fixture() {
           )}
 
           <Card title="Partidos">
-            <Table headers={['Grupo', 'Ronda', 'Pareja 1', '', 'Pareja 2', 'Estado']}>
+            <Table headers={['Grupo', 'Fecha', 'Pareja 1', '', 'Pareja 2', 'Estado']}>
               {preview.matches.map((m, i) => (
                 <TableRow key={i}>
                   <TableCell className="text-indigo-400 font-bold">
@@ -673,17 +713,18 @@ export default function Fixture() {
               <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
                 <div className="flex border-b border-slate-800 flex-1 w-full md:w-auto">
                   <button
-                    onClick={() => setActiveTab('pending')}
+                    onClick={() => setActiveTab('structure')}
                     className={cn(
                       'px-6 py-3 text-sm font-medium relative',
-                      activeTab === 'pending' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                      activeTab === 'structure' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <Clock size={16} /> Próximos Partidos
+                      <LayoutGrid size={16} /> Fixture (Fechas)
                     </div>
-                    {activeTab === 'pending' && <motion.div layoutId="subtab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
+                    {activeTab === 'structure' && <motion.div layoutId="subtab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
                   </button>
+
                   <button
                     onClick={() => setActiveTab('played')}
                     className={cn(
@@ -698,165 +739,162 @@ export default function Fixture() {
                   </button>
                 </div>
 
-                <div className="relative w-full md:w-80">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-                    <Search size={16} />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Buscar pareja o jugador..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300"
-                    >
-                      <CloseIcon size={16} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {activeTab === 'pending' ? (
-                <Card title="Partidos Pendientes">
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-3">
-                      <label className="text-sm text-slate-400">Filtrar por Ronda</label>
-                      <select
-                        value={pendingRoundKey}
-                        onChange={(e) => setPendingRoundKey(e.target.value)}
-                        className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200"
-                      >
-                        <option value="all">Todas las rondas</option>
-                        {Array.from(new Set(viewMatches.filter(m => m.status !== 'jugado').map(m => m.round)))
-                          .sort((a, b) => a - b)
-                          .map(r => (
-                            <option key={r} value={r.toString()}>Ronda {r}</option>
-                          ))
-                        }
-                      </select>
-                    </div>
-
-                    {(() => {
-                      const pending = viewMatches.filter(m => m.status !== 'jugado');
-                      const filtered = pending.filter(m => {
-                        const matchesRound = pendingRoundKey === 'all' || m.round.toString() === pendingRoundKey;
-                        if (!matchesRound) return false;
-
-                        if (!searchQuery) return true;
-                        const q = searchQuery.toLowerCase();
-                        const t1 = m.team1;
-                        const t2 = m.team2;
-                        const matchT1 = t1?.team_name?.toLowerCase().includes(q) || 
-                                       t1?.player1?.first_name?.toLowerCase().includes(q) || 
-                                       t1?.player1?.last_name?.toLowerCase().includes(q) ||
-                                       t1?.player2?.first_name?.toLowerCase().includes(q) || 
-                                       t1?.player2?.last_name?.toLowerCase().includes(q);
-                        const matchT2 = t2?.team_name?.toLowerCase().includes(q) || 
-                                       t2?.player1?.first_name?.toLowerCase().includes(q) || 
-                                       t2?.player1?.last_name?.toLowerCase().includes(q) ||
-                                       t2?.player2?.first_name?.toLowerCase().includes(q) || 
-                                       t2?.player2?.last_name?.toLowerCase().includes(q);
-                        return matchT1 || matchT2;
-                      });
-
-                      if (filtered.length === 0) {
-                        return <p className="text-sm text-slate-500 py-8 text-center italic">
-                          {searchQuery || pendingRoundKey !== 'all' ? 'No coincides con la búsqueda o filtro.' : 'No hay partidos pendientes.'}
-                        </p>;
-                      }
-
-                      return (
-                        <Table headers={['Grupo', 'Ronda', 'Pareja 1', '', 'Pareja 2', 'Estado', 'Acción']}>
-                          {filtered.map((m) => (
-                            <TableRow key={m.id}>
-                              <TableCell className="font-bold text-indigo-400">{m.group?.group_name || 'Liga'}</TableCell>
-                              <TableCell className="text-slate-500 font-mono">R{m.round}</TableCell>
-                              <TableCell className="font-bold text-white italic">{m.team1?.team_name}</TableCell>
-                              <TableCell className="text-slate-600 font-bold">VS</TableCell>
-                              <TableCell className="font-bold text-white italic">{m.team2?.team_name}</TableCell>
-                              <TableCell>
-                                <div className="flex flex-col gap-1">
-                                  {m.status === 'jugado' ? (
-                                    <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 uppercase font-bold w-fit">
-                                      Finalizado
-                                    </span>
-                                  ) : m.status === 'live' ? (
-                                    <span className="text-[10px] bg-red-500/20 text-red-500 px-2 py-0.5 rounded border border-red-500/20 uppercase font-bold w-fit animate-pulse">
-                                      EN VIVO
-                                    </span>
-                                  ) : m.match_date || m.match_time || m.court_name ? (
-                                    <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded border border-indigo-500/20 uppercase font-bold w-fit">
-                                      Programado
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] bg-slate-500/20 text-slate-400 px-2 py-0.5 rounded border border-slate-500/20 uppercase font-bold w-fit">
-                                      Sin programar
-                                    </span>
-                                  )}
-                                  
-                                  {(m.match_date || m.match_time || m.court_name) && (
-                                    <div className="text-[10px] text-slate-400 leading-tight">
-                                      {m.match_date} {m.match_time}
-                                      {m.court_name && <div className="text-indigo-400/80">{m.court_name}</div>}
-                                    </div>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  size="sm"
-                                  variant={m.match_date || m.match_time || m.court_name ? "secondary" : "secondary"}
-                                  onClick={() =>
-                                    setModalMatch({
-                                      id: m.id,
-                                      team1_id: m.team1_id,
-                                      team2_id: m.team2_id,
-                                      team1: m.team1,
-                                      team2: m.team2,
-                                      status: m.status,
-                                      match_date: m.match_date,
-                                      match_time: m.match_time,
-                                      court_name: m.court_name,
-                                      comment: m.comment,
-                                      winner_id: m.winner_id
-                                    })
-                                  }
-                                >
-                                  {m.match_date || m.match_time || m.court_name ? 'Cargar / Editar' : 'Programar'}
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </Table>
-                      );
-                    })()}
-                  </div>
-                </Card>
-              ) : (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3">
-                    <label className="text-sm text-slate-400">Filtrar por Grupo</label>
+                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                  <div className="flex items-center gap-2">
                     <select
-                      value={playedGroupKey}
-                      onChange={(e) => setPlayedGroupKey(e.target.value)}
-                      className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200"
+                      value={selectedGroupKey}
+                      onChange={(e) => setSelectedGroupKey(e.target.value)}
+                      className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                     >
                       <option value="__all__">Todos los grupos</option>
-                      {Array.from(new Set(viewMatches.map(m => m.group?.id).filter(id => id))).map(gid => {
-                        const gname = viewMatches.find(m => m.group?.id === gid)?.group?.group_name;
-                        return <option key={gid} value={gid}>{gname}</option>
+                      {Array.from(new Set(viewMatches.map(m => m.league_group_id || '__liga__'))).sort().map(gid => {
+                        if (gid === '__liga__') {
+                          if (!viewMatches.some(m => !m.league_group_id)) return null;
+                          return <option key="__liga__" value="__liga__">Liga Única</option>;
+                        }
+                        const gname = viewMatches.find(m => m.league_group_id === gid)?.group?.group_name || 'Grupo';
+                        return <option key={gid} value={gid}>{gname}</option>;
                       })}
                     </select>
                   </div>
 
+                  <div className="relative flex-1 md:w-64">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                      <Search size={16} />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Buscar pareja o jugador..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300"
+                      >
+                        <CloseIcon size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {activeTab === 'structure' ? (
+                <div className="space-y-8">
+                  {(() => {
+                    const filtered = viewMatches.filter(m => {
+                      const mGroupKey = m.league_group_id || '__liga__';
+                      const matchesGroup = selectedGroupKey === '__all__' || mGroupKey === selectedGroupKey;
+                      if (!matchesGroup) return false;
+
+                      if (!searchQuery) return true;
+                      const q = searchQuery.toLowerCase();
+                      const t1 = m.team1;
+                      const t2 = m.team2;
+                      return t1?.team_name?.toLowerCase().includes(q) || 
+                             t2?.team_name?.toLowerCase().includes(q) ||
+                             t1?.player1?.last_name?.toLowerCase().includes(q) ||
+                             t1?.player2?.last_name?.toLowerCase().includes(q);
+                    });
+
+                    const groups = Array.from(new Set(filtered.map(m => m.group?.group_name || 'Liga Única'))).sort();
+                    
+                    if (groups.length === 0) return <Card className="p-8 text-center text-slate-500 italic">No hay partidos que coincidan.</Card>;
+
+                    return groups.map(gName => (
+                      <div key={gName} className="space-y-4">
+                        <h3 className="text-xl font-bold text-indigo-400 border-l-4 border-indigo-500 pl-4 py-1 bg-indigo-500/5 rounded-r-lg">
+                          {gName}
+                        </h3>
+                        {(() => {
+                          const gMatches = filtered.filter(m => (m.group?.group_name || 'Liga Única') === gName);
+                          const phase1Matches = gMatches.filter(m => m.phase === 1 || !m.phase);
+                          const phase2Matches = gMatches.filter(m => m.phase === 2);
+                          
+                          return (
+                            <div className="space-y-8">
+                              {phase1Matches.length > 0 && (
+                                <Card title="Pool de Clasificación (Fase 1)" subtitle="Orden de fecha no relevante">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                                    {phase1Matches.map(m => (
+                                      <div key={m.id} className="p-3 bg-slate-950 border border-slate-800 rounded-xl flex flex-col gap-2 hover:border-slate-700 transition-all group">
+                                        <div className="flex justify-between items-center text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">
+                                          <span>Match #{m.id.slice(-4)} {m.round ? `· F${m.round}` : ''}</span>
+                                          {m.status === 'jugado' ? (
+                                            <span className="text-emerald-500">FINALIZADO</span>
+                                          ) : m.match_date ? (
+                                            <span className="text-indigo-400">PROGRAMADO</span>
+                                          ) : (
+                                            <span className="text-slate-600">PENDIENTE</span>
+                                          )}
+                                        </div>
+                                        <div className="flex flex-col gap-1 text-sm font-semibold italic text-white leading-tight">
+                                          <div className={cn(m.winner_id === m.team1_id && "text-emerald-400")}>{m.team1?.team_name}</div>
+                                          <div className="text-[10px] text-slate-600 font-bold not-italic my-0.5">VS</div>
+                                          <div className={cn(m.winner_id === m.team2_id && "text-emerald-400")}>{m.team2?.team_name}</div>
+                                        </div>
+                                        <div className="flex justify-between items-end mt-2">
+                                          <div className="text-[10px] text-slate-400">
+                                            {m.match_date ? `${m.match_date} ${m.match_time}` : "Sin fecha"}
+                                          </div>
+                                          <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setModalMatch({ ...m })}>
+                                            {m.status === 'jugado' ? 'Editar' : 'Cargar'}
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </Card>
+                              )}
+
+                              {phase2Matches.length > 0 && (
+                                <div className="space-y-4">
+                                  <h4 className="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                    <Trophy size={20} /> Fase 2: Playoff / Eliminación
+                                  </h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {phase2Matches.map(m => (
+                                      <div key={m.id} className="p-4 bg-slate-900 border-2 border-amber-500/20 rounded-2xl flex flex-col gap-3 shadow-lg shadow-amber-500/5">
+                                        <div className="flex justify-between items-center text-[10px] text-amber-500/70 uppercase font-black tracking-widest">
+                                          <span>{m.comment || 'Playoff'}</span>
+                                          {m.status === 'jugado' ? 'FINAL' : 'PENDIENTE'}
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                          <div className={cn("text-sm font-bold italic", m.winner_id === m.team1_id ? "text-emerald-400" : "text-white")}>
+                                            {m.team1?.team_name || 'TBD'}
+                                          </div>
+                                          <div className="text-[10px] text-slate-600 font-bold px-2">VS</div>
+                                          <div className={cn("text-sm font-bold italic", m.winner_id === m.team2_id ? "text-emerald-400" : "text-white")}>
+                                            {m.team2?.team_name || 'TBD'}
+                                          </div>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-2 border-t border-slate-800">
+                                          <span className="text-[10px] text-slate-500 italic">#{m.id.slice(-4)}</span>
+                                          <Button size="sm" variant="secondary" className="h-8 text-xs font-bold" onClick={() => setModalMatch({ ...m })}>
+                                            Resultado
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ));
+                  })()}
+                </div>
+              ) : (
+                <div className="space-y-6">
                   {(() => {
                     const playedMatches = viewMatches.filter(m => m.status === 'jugado');
                     const filtered = playedMatches.filter(m => {
-                      const matchesGroup = playedGroupKey === '__all__' || m.league_group_id === playedGroupKey;
+                      const mGroupKey = m.league_group_id || '__liga__';
+                      const matchesGroup = selectedGroupKey === '__all__' || mGroupKey === selectedGroupKey;
                       if (!matchesGroup) return false;
                       
                       if (!searchQuery) return true;
@@ -909,7 +947,7 @@ export default function Fixture() {
                               
                               return (
                                 <TableRow key={m.id}>
-                                  <TableCell className="text-slate-500 font-mono text-xs">R{m.round}</TableCell>
+                                  <TableCell className="text-slate-500 font-mono text-xs">F{m.round}</TableCell>
                                   <TableCell className={cn("font-bold italic", m.winner_id === m.team1_id ? "text-emerald-400" : "text-white")}>
                                     {p1}
                                   </TableCell>

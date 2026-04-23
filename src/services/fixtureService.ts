@@ -6,7 +6,7 @@ export const fixtureService = {
   async getStatus(categoryId: string) {
     const { data: cat, error: catErr } = await supabase
       .from('league_categories')
-      .select('status')
+      .select('fixture_status')
       .eq('id', categoryId)
       .single();
 
@@ -29,7 +29,7 @@ export const fixtureService = {
       .eq('league_category_id', categoryId);
 
     const hasMatches = (matches?.length || 0) > 0;
-    const categoryClosed = cat?.status === 'Closed';
+    const categoryClosed = cat?.fixture_status === 'Closed';
 
     const teamCount = allTeams?.length || 0;
 
@@ -48,7 +48,7 @@ export const fixtureService = {
       hasIncomplete,
       teamCount: teamCount || 0,
       matches: matches || [],
-      categoryStatus: cat?.status as string | undefined
+      categoryStatus: cat?.fixture_status as string | undefined
     };
   },
 
@@ -57,7 +57,7 @@ export const fixtureService = {
     const nextStatus = closed ? 'Closed' : 'Open';
     const { error } = await supabase
       .from('league_categories')
-      .update({ status: nextStatus })
+      .update({ fixture_status: nextStatus })
       .eq('id', categoryId);
 
     if (error) throw new Error(mapSupabaseError(error));
@@ -66,7 +66,7 @@ export const fixtureService = {
   async clearFixture(categoryId: string) {
     const { data: cat } = await supabase
       .from('league_categories')
-      .select('status')
+      .select('fixture_status')
       .eq('id', categoryId)
       .single();
 
@@ -78,7 +78,7 @@ export const fixtureService = {
       .limit(1);
 
     const hasFinished = (finished?.length || 0) > 0;
-    if (hasFinished && cat?.status !== 'Closed') {
+    if (hasFinished && cat?.fixture_status !== 'Closed') {
       throw new Error(
         'No se puede eliminar el fixture: hay partidos finalizados. Cierra la categoría primero para poder borrar y rehacer.'
       );
@@ -95,8 +95,8 @@ export const fixtureService = {
 
     await supabase.from('league_standings').delete().eq('league_category_id', categoryId);
 
-    if (cat?.status === 'Closed') {
-      await supabase.from('league_categories').update({ status: 'Open' }).eq('id', categoryId);
+    if (cat?.fixture_status === 'Closed') {
+      await supabase.from('league_categories').update({ fixture_status: 'Open' }).eq('id', categoryId);
     }
 
     return true;
@@ -179,5 +179,11 @@ export const fixtureService = {
 
     if (error) throw new Error(mapSupabaseError(error));
     return data;
+  },
+
+  async savePlayoffMatches(allMatches: Partial<LeagueMatch>[]) {
+    const { error } = await supabase.from('league_matches').insert(allMatches);
+    if (error) throw new Error(mapSupabaseError(error));
+    return true;
   }
 };

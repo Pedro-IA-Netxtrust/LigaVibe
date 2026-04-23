@@ -219,47 +219,6 @@ export default function Standings() {
         </Card>
       ) : (
         <>
-          <Card title="Partidos pendientes">
-            {pendingFiltered.length === 0 ? (
-              <p className="text-sm text-slate-500">No hay partidos pendientes en este filtro.</p>
-            ) : (
-              <Table headers={['Grupo', 'Ronda', 'Pareja 1', '', 'Pareja 2', 'Acción']}>
-                {pendingFiltered.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="text-indigo-400 font-medium">
-                      {m.group?.group_name || 'Liga'}
-                    </TableCell>
-                    <TableCell className="text-slate-500 font-mono">R{m.round}</TableCell>
-                    <TableCell className="font-semibold text-white italic">{m.team1?.team_name}</TableCell>
-                    <TableCell className="text-slate-600">vs</TableCell>
-                    <TableCell className="font-semibold text-white italic">{m.team2?.team_name}</TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={!canEdit}
-                        onClick={() =>
-                          setModalMatch({
-                            id: m.id,
-                            team1_id: m.team1_id,
-                            team2_id: m.team2_id,
-                            team1: m.team1,
-                            team2: m.team2,
-                            status: m.status
-                          })
-                        }
-                      >
-                        <Pencil size={14} className="mr-1" />
-                        Resultado
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </Table>
-            )}
-          </Card>
-
           <Card title="Tabla de posiciones">
             {standingsRows.length === 0 ? (
               <EmptyState
@@ -309,6 +268,47 @@ export default function Standings() {
             <p className="text-[11px] text-slate-500 mt-4">
               Criterios: 1) puntos (2 por victoria) 2) diferencia de sets 3) diferencia de games.
             </p>
+          </Card>
+
+          <Card title="Partidos pendientes">
+            {pendingFiltered.length === 0 ? (
+              <p className="text-sm text-slate-500">No hay partidos pendientes en este filtro.</p>
+            ) : (
+              <Table headers={['Grupo', 'Fecha', 'Pareja 1', '', 'Pareja 2', 'Acción']}>
+                {pendingFiltered.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="text-indigo-400 font-medium">
+                      {m.group?.group_name || 'Liga'}
+                    </TableCell>
+                    <TableCell className="text-slate-500 font-mono">F{m.round}</TableCell>
+                    <TableCell className="font-semibold text-white italic">{m.team1?.team_name}</TableCell>
+                    <TableCell className="text-slate-600">vs</TableCell>
+                    <TableCell className="font-semibold text-white italic">{m.team2?.team_name}</TableCell>
+                    <TableCell>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={!canEdit}
+                        onClick={() =>
+                          setModalMatch({
+                            id: m.id,
+                            team1_id: m.team1_id,
+                            team2_id: m.team2_id,
+                            team1: m.team1,
+                            team2: m.team2,
+                            status: m.status
+                          })
+                        }
+                      >
+                        <Pencil size={14} className="mr-1" />
+                        Resultado
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </Table>
+            )}
           </Card>
         </>
       )}

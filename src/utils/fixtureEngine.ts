@@ -69,6 +69,7 @@ export const FixtureEngine = {
             team1_id: team1.id,
             team2_id: team2.id,
             round: j + 1,
+            phase: 1,
             status: 'pendiente',
             team1_sets: 0,
             team1_games: 0,
@@ -96,5 +97,55 @@ export const FixtureEngine = {
     }
 
     return matches;
+  },
+
+  generatePlayoffs(
+    topTeams: LeagueTeam[],
+    categoryId: string
+  ): Partial<LeagueMatch>[] {
+    const matches: Partial<LeagueMatch>[] = [];
+    const n = topTeams.length;
+
+    if (n === 4) {
+      // Semifinals
+      matches.push({
+        league_category_id: categoryId,
+        team1_id: topTeams[0].id, // 1st
+        team2_id: topTeams[3].id, // 4th
+        round: 1,
+        phase: 2,
+        status: 'pendiente',
+        comment: 'Semifinal 1'
+      });
+      matches.push({
+        league_category_id: categoryId,
+        team1_id: topTeams[1].id, // 2nd
+        team2_id: topTeams[2].id, // 3rd
+        round: 1,
+        phase: 2,
+        status: 'pendiente',
+        comment: 'Semifinal 2'
+      });
+    } else if (n === 2) {
+      // Direct Final
+      matches.push({
+        league_category_id: categoryId,
+        team1_id: topTeams[0].id,
+        team2_id: topTeams[1].id,
+        round: 1,
+        phase: 2,
+        status: 'pendiente',
+        comment: 'Gran Final'
+      });
+    } else if (n === 8) {
+      // Quarterfinals
+      matches.push({ league_category_id: categoryId, team1_id: topTeams[0].id, team2_id: topTeams[7].id, round: 1, phase: 2, status: 'pendiente', comment: 'Cuartos 1' });
+      matches.push({ league_category_id: categoryId, team1_id: topTeams[3].id, team2_id: topTeams[4].id, round: 1, phase: 2, status: 'pendiente', comment: 'Cuartos 2' });
+      matches.push({ league_category_id: categoryId, team1_id: topTeams[1].id, team2_id: topTeams[6].id, round: 1, phase: 2, status: 'pendiente', comment: 'Cuartos 3' });
+      matches.push({ league_category_id: categoryId, team1_id: topTeams[2].id, team2_id: topTeams[5].id, round: 1, phase: 2, status: 'pendiente', comment: 'Cuartos 4' });
+    }
+
+    return matches;
   }
 };
+

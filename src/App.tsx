@@ -12,6 +12,7 @@ import Categories from './pages/Categories';
 import Registrations from './pages/Registrations';
 import Fixture from './pages/Fixture';
 import Standings from './pages/Standings';
+import Schedule from './pages/Schedule';
 
 function pageFromPath(pathname: string): string {
   const seg = pathname.replace(/^\//, '').split('/')[0];
@@ -32,6 +33,7 @@ function AppRoutes() {
         <Route path="/categorias" element={<Categories />} />
         <Route path="/inscripciones" element={<Registrations />} />
         <Route path="/fixture" element={<Fixture />} />
+        <Route path="/programacion" element={<Schedule />} />
         <Route path="/posiciones" element={<Standings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

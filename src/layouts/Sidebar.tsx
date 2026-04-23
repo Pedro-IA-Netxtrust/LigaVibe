@@ -30,8 +30,9 @@ const navGroups = [
     label: 'Torneo',
     items: [
       { id: 'inscripciones', path: '/inscripciones', label: 'Inscripciones', icon: UserPlus },
-      { id: 'fixture', path: '/fixture', label: 'Fixture', icon: Calendar },
-      { id: 'posiciones', path: '/posiciones', label: 'Posiciones', icon: ListOrdered }
+      { id: 'fixture', path: '/fixture', label: 'Fixture', icon: ListOrdered },
+      { id: 'programacion', path: '/programacion', label: 'Programación', icon: Calendar },
+      { id: 'posiciones', path: '/posiciones', label: 'Posiciones', icon: Trophy }
     ]
   }
 ];

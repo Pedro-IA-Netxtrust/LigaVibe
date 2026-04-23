@@ -1,16 +1,40 @@
 import React from 'react';
-import { Card, Button } from '../components/ui/Base';
+import { Card } from '../components/ui/Base';
 import { Table, TableRow, TableCell } from '../components/ui/Table';
 import { cn } from '../lib/utils';
-import { Users, UserPlus, Trophy, Calendar } from 'lucide-react';
+import { dashboardService } from '../services/dashboardService';
+import { LoadingState } from '../components/ui/States';
 
 export default function Dashboard() {
-  const stats = [
-    { label: 'Jugadores Totales', value: '248', trend: '+12 este mes', color: 'text-indigo-400' },
-    { label: 'Categorías Activas', value: '6', trend: 'Sin cambios', color: 'text-slate-400' },
-    { label: 'Parejas Inscritas', value: '42', trend: '+5 hoy', color: 'text-indigo-400' },
-    { label: 'Partidos Pendientes', value: '18', trend: '4 prioritarios', color: 'text-amber-400' },
-  ];
+  const [stats, setStats] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function loadStats() {
+      try {
+        const data = await dashboardService.getStats();
+        setStats([
+          { label: 'Jugadores Totales', value: data.players.toString(), trend: '+5 este mes', color: 'text-indigo-400' },
+          { label: 'Categorías Activas', value: data.categories.toString(), trend: 'En curso', color: 'text-slate-400' },
+          { label: 'Inscripciones Pagadas', value: data.paidRegistrations.toString(), trend: 'Recaudación activa', color: 'text-emerald-400' },
+          { label: 'Partidos Jugados', value: data.playedMatches.toString(), trend: 'Ritmo constante', color: 'text-indigo-400' },
+        ]);
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingState />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10">
@@ -72,3 +96,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
