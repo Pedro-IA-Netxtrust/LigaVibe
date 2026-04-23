@@ -162,14 +162,14 @@ export const fixtureService = {
         team1:league_teams!team1_id(
           id, 
           team_name, 
-          player1:clients!player1_id(first_name, last_name), 
-          player2:clients!player2_id(first_name, last_name)
+          player1:clients!player1_id(first_name, last_name, rut, phone), 
+          player2:clients!player2_id(first_name, last_name, rut, phone)
         ),
         team2:league_teams!team2_id(
           id, 
           team_name, 
-          player1:clients!player1_id(first_name, last_name), 
-          player2:clients!player2_id(first_name, last_name)
+          player1:clients!player1_id(first_name, last_name, rut, phone), 
+          player2:clients!player2_id(first_name, last_name, rut, phone)
         ),
         group:league_groups(id, group_name)
       `

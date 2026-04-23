@@ -28,7 +28,7 @@ export const playerService = {
 
     if (filters?.search) {
       const search = filters.search;
-      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,rut.ilike.%${search}%`);
+      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,rut.ilike.%${search}%,phone.ilike.%${search}%`);
     }
 
     if (filters?.gender && filters.gender !== 'all') {

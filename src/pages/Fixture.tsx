@@ -793,10 +793,17 @@ export default function Fixture() {
                       const q = searchQuery.toLowerCase();
                       const t1 = m.team1;
                       const t2 = m.team2;
-                      return t1?.team_name?.toLowerCase().includes(q) || 
-                             t2?.team_name?.toLowerCase().includes(q) ||
-                             t1?.player1?.last_name?.toLowerCase().includes(q) ||
-                             t1?.player2?.last_name?.toLowerCase().includes(q);
+                      
+                      const searchStr = [
+                        t1?.team_name,
+                        t1?.player1?.first_name, t1?.player1?.last_name, t1?.player1?.rut, t1?.player1?.phone,
+                        t1?.player2?.first_name, t1?.player2?.last_name, t1?.player2?.rut, t1?.player2?.phone,
+                        t2?.team_name,
+                        t2?.player1?.first_name, t2?.player1?.last_name, t2?.player1?.rut, t2?.player1?.phone,
+                        t2?.player2?.first_name, t2?.player2?.last_name, t2?.player2?.rut, t2?.player2?.phone
+                      ].join(' ').toLowerCase();
+                      
+                      return searchStr.includes(q);
                     });
 
                     const groups = Array.from(new Set(filtered.map(m => m.group?.group_name || 'Liga Única'))).sort();

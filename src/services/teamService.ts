@@ -29,8 +29,8 @@ export const teamService = {
       .select(
         `
         *,
-        player1:clients!player1_id(*),
-        player2:clients!player2_id(*)
+        player1:clients!player1_id(id, first_name, last_name, rut, phone),
+        player2:clients!player2_id(id, first_name, last_name, rut, phone)
       `
       )
       .eq('league_category_id', categoryId)

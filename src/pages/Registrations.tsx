@@ -29,6 +29,7 @@ export default function Registrations() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [selectedTeam, setSelectedTeam] = React.useState<any | null>(null);
   const [actionError, setActionError] = React.useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState<string>('');
 
   // Auto-select first category if none selected
   React.useEffect(() => {
@@ -88,6 +89,19 @@ export default function Registrations() {
     }
   };
 
+  const filteredTeams = React.useMemo(() => {
+    if (!searchQuery) return teams;
+    const q = searchQuery.toLowerCase();
+    return teams.filter(t => {
+      const searchStr = [
+        t.team_name,
+        t.player1?.first_name, t.player1?.last_name, t.player1?.rut, t.player1?.phone,
+        t.player2?.first_name, t.player2?.last_name, t.player2?.rut, t.player2?.phone
+      ].join(' ').toLowerCase();
+      return searchStr.includes(q);
+    });
+  }, [teams, searchQuery]);
+
   const handleDeleteAllTeams = async () => {
     const catName = selectedCategory?.name || 'esta categoría';
     const first = window.confirm(
@@ -130,7 +144,7 @@ export default function Registrations() {
         ))}
       </div>
 
-      <div className="flex justify-between items-center px-2">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center px-2">
         <div>
           <h2 className="text-xl font-bold text-white">Listado de Inscritos</h2>
           {selectedCategory && (
@@ -139,10 +153,23 @@ export default function Registrations() {
             </p>
           )}
         </div>
-        <Button size="md" onClick={handleCreate} disabled={!selectedCategoryId}>
-          <UserPlus size={18} className="mr-2" />
-          Inscribir Pareja
-        </Button>
+
+        <div className="flex flex-1 md:max-w-md w-full gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+            <input 
+              type="text" 
+              placeholder="Buscar por nombre, RUT, teléfono..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+          <Button size="md" onClick={handleCreate} disabled={!selectedCategoryId}>
+            <UserPlus size={18} className="mr-2" />
+            Inscribir
+          </Button>
+        </div>
       </div>
 
       {actionError && (
@@ -162,16 +189,16 @@ export default function Registrations() {
           title="Selecciona una categoría" 
           description="Debes seleccionar una categoría para gestionar sus inscripciones." 
         />
-      ) : teams.length === 0 ? (
+      ) : filteredTeams.length === 0 ? (
         <EmptyState 
           icon={UserPlus} 
-          title="Sin inscritos" 
-          description="Aún no hay parejas inscritas en esta categoría." 
+          title={searchQuery ? "Sin resultados" : "Sin inscritos"} 
+          description={searchQuery ? "No hay parejas que coincidan con tu búsqueda." : "Aún no hay parejas inscritas en esta categoría."} 
         />
       ) : (
         <Card className="border-none bg-transparent! p-0!">
           <Table headers={['№', 'Categoría', 'Pareja / Jugadores', 'Estado', 'P1', 'P2', 'Seed', 'Acciones']}>
-            {teams.map((team, index) => {
+            {filteredTeams.map((team, index) => {
               const isIncomplete = !team.player2_id;
               
               return (

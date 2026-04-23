@@ -72,7 +72,7 @@ export default function Players() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
           <input 
             type="text" 
-            placeholder="Buscar por nombre o RUT..." 
+            placeholder="Buscar por nombre, RUT o teléfono..." 
             value={filters.search}
             onChange={(e) => updateFilters({ search: e.target.value })}
             className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"

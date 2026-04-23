@@ -82,18 +82,51 @@ export default function Standings() {
     return p.filter((m) => m.league_group_id === groupKey);
   }, [matches, groupKey]);
 
-  const standingsRows: ComputedStanding[] = React.useMemo(() => {
-    const slice = finishedFiltered.map((m) => ({
-      team1_id: m.team1_id,
-      team2_id: m.team2_id,
-      winner_id: m.winner_id,
-      team1_sets: m.team1_sets,
-      team2_sets: m.team2_sets,
-      team1_games: m.team1_games,
-      team2_games: m.team2_games
-    }));
-    return computeStandingsFromMatches(slice, teamNames);
-  }, [finishedFiltered, teamNames]);
+  const standingsByGroup = React.useMemo(() => {
+    const groups: Record<string, { label: string; rows: ComputedStanding[] }> = {};
+    
+    // Identify all groups present
+    matches.forEach(m => {
+      const gid = m.league_group_id || '__liga__';
+      if (!groups[gid]) {
+        groups[gid] = {
+          label: m.group?.group_name || (m.league_group_id ? 'Grupo' : 'Liga única'),
+          rows: []
+        };
+      }
+    });
+
+    // Compute standings for each group
+    Object.keys(groups).forEach(gid => {
+      const groupMatches = matches.filter(m => (m.league_group_id || '__liga__') === gid && m.status === 'jugado');
+      const slice = groupMatches.map(m => ({
+        team1_id: m.team1_id,
+        team2_id: m.team2_id,
+        winner_id: m.winner_id,
+        team1_sets: m.team1_sets,
+        team2_sets: m.team2_sets,
+        team1_games: m.team1_games,
+        team2_games: m.team2_games
+      }));
+      groups[gid].rows = computeStandingsFromMatches(slice, teamNames);
+    });
+
+    return groups;
+  }, [matches, teamNames]);
+
+  const displayedGroups = React.useMemo(() => {
+    if (groupKey === '__all__') {
+      return Object.entries(standingsByGroup)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([id, data]) => ({ id, ...data }));
+    }
+    return [
+      { 
+        id: groupKey, 
+        ...standingsByGroup[groupKey] || { label: 'Sin datos', rows: [] } 
+      }
+    ];
+  }, [standingsByGroup, groupKey]);
 
   const canEdit = fixtureState === 'generated' || fixtureState === 'closed';
 
@@ -111,16 +144,15 @@ export default function Standings() {
     }
   };
 
-  const handleCopyGroup = () => {
-    if (standingsRows.length === 0) return;
+  const handleCopyGroup = (groupLabel: string, rows: ComputedStanding[]) => {
+    if (rows.length === 0) return;
     
     const catName = categories.find(c => c.id === categoryId)?.name || 'Categoría';
-    const groupLabel = groupOptions.find(o => o.key === groupKey)?.label || 'Grupo';
     
     let text = `🏆 *${catName.toUpperCase()}*\n`;
     text += `👥 *${groupLabel.toUpperCase()}*\n\n`;
     
-    standingsRows.forEach((r, idx) => {
+    rows.forEach((r, idx) => {
       text += `${idx + 1}. ${r.team_name}\n`;
     });
     
@@ -187,11 +219,11 @@ export default function Standings() {
               </option>
             ))}
           </select>
-          {groupKey !== '__all__' && groupKey !== '__liga__' && standingsRows.length > 0 && (
+          {groupKey !== '__all__' && groupKey !== '__liga__' && standingsByGroup[groupKey]?.rows.length > 0 && (
             <Button
               variant="secondary"
               size="sm"
-              onClick={handleCopyGroup}
+              onClick={() => handleCopyGroup(standingsByGroup[groupKey].label, standingsByGroup[groupKey].rows)}
               title="Copiar lista de parejas de este grupo"
             >
               <Share2 size={14} className="mr-1.5" />
@@ -219,56 +251,74 @@ export default function Standings() {
         </Card>
       ) : (
         <>
-          <Card title="Tabla de posiciones">
-            {standingsRows.length === 0 ? (
-              <EmptyState
-                icon={ListOrdered}
-                title="Sin datos aún"
-                description="Cuando existan partidos finalizados, la tabla se llenará automáticamente."
-              />
+          <div className="space-y-6">
+            {displayedGroups.length === 0 || (displayedGroups.length === 1 && displayedGroups[0].rows.length === 0) ? (
+              <Card title="Tabla de posiciones">
+                <EmptyState
+                  icon={ListOrdered}
+                  title="Sin datos aún"
+                  description="Cuando existan partidos finalizados, la tabla se llenará automáticamente."
+                />
+              </Card>
             ) : (
-              <Table
-                headers={[
-                  '#',
-                  'Pareja',
-                  'PJ',
-                  'PG',
-                  'PP',
-                  'SF',
-                  'SC',
-                  'DS',
-                  'GF',
-                  'GC',
-                  'DG',
-                  'Pts'
-                ]}
-              >
-                {standingsRows.map((r, idx) => {
-                  const ds = r.sets_for - r.sets_against;
-                  const dg = r.games_for - r.games_against;
-                  return (
-                    <TableRow key={r.league_team_id}>
-                      <TableCell className="text-slate-500 font-mono">{idx + 1}</TableCell>
-                      <TableCell className="font-semibold text-white italic">{r.team_name}</TableCell>
-                      <TableCell>{r.played}</TableCell>
-                      <TableCell>{r.won}</TableCell>
-                      <TableCell>{r.lost}</TableCell>
-                      <TableCell>{r.sets_for}</TableCell>
-                      <TableCell>{r.sets_against}</TableCell>
-                      <TableCell>{ds >= 0 ? `+${ds}` : ds}</TableCell>
-                      <TableCell>{r.games_for}</TableCell>
-                      <TableCell>{r.games_against}</TableCell>
-                      <TableCell>{dg >= 0 ? `+${dg}` : dg}</TableCell>
-                      <TableCell className="bg-indigo-500/10 text-indigo-400 font-black text-center border-l border-indigo-500/20">{r.points}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </Table>
+              displayedGroups.map((g) => (
+                <Card key={g.id} title={g.label}>
+                  <Table
+                    headers={[
+                      '#',
+                      'Pareja',
+                      'PJ',
+                      'PG',
+                      'PP',
+                      'SF',
+                      'SC',
+                      'DS',
+                      'GF',
+                      'GC',
+                      'DG',
+                      'Pts'
+                    ]}
+                  >
+                    {g.rows.map((r, idx) => {
+                      const ds = r.sets_for - r.sets_against;
+                      const dg = r.games_for - r.games_against;
+                      return (
+                        <TableRow key={r.league_team_id}>
+                          <TableCell className="text-slate-500 font-mono w-8">{idx + 1}</TableCell>
+                          <TableCell className="font-semibold text-white italic">{r.team_name}</TableCell>
+                          <TableCell>{r.played}</TableCell>
+                          <TableCell>{r.won}</TableCell>
+                          <TableCell>{r.lost}</TableCell>
+                          <TableCell>{r.sets_for}</TableCell>
+                          <TableCell>{r.sets_against}</TableCell>
+                          <TableCell>{ds >= 0 ? `+${ds}` : ds}</TableCell>
+                          <TableCell>{r.games_for}</TableCell>
+                          <TableCell>{r.games_against}</TableCell>
+                          <TableCell>{dg >= 0 ? `+${dg}` : dg}</TableCell>
+                          <TableCell className="bg-indigo-500/10 text-indigo-400 font-black text-center border-l border-indigo-500/20">{r.points}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </Table>
+                  {displayedGroups.length > 1 && (
+                    <div className="mt-4 flex justify-end">
+                       <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCopyGroup(g.label, g.rows)}
+                      >
+                        <Share2 size={14} className="mr-1.5" />
+                        Copiar Lista {g.label}
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              ))
             )}
-            <p className="text-[11px] text-slate-500 mt-4">
+            <p className="text-[11px] text-slate-500 mt-2 px-2">
               Criterios: 1) puntos (2 por victoria) 2) diferencia de sets 3) diferencia de games.
             </p>
-          </Card>
+          </div>
 
           <Card title="Partidos pendientes">
             {pendingFiltered.length === 0 ? (

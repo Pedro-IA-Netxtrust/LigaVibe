@@ -68,17 +68,16 @@ export default function Schedule() {
       const q = searchQuery.toLowerCase();
       const t1 = m.team1;
       const t2 = m.team2;
-      const matchT1 = t1?.team_name?.toLowerCase().includes(q) || 
-                     t1?.player1?.first_name?.toLowerCase().includes(q) || 
-                     t1?.player1?.last_name?.toLowerCase().includes(q) ||
-                     t1?.player2?.first_name?.toLowerCase().includes(q) || 
-                     t1?.player2?.last_name?.toLowerCase().includes(q);
-      const matchT2 = t2?.team_name?.toLowerCase().includes(q) || 
-                     t2?.player1?.first_name?.toLowerCase().includes(q) || 
-                     t2?.player1?.last_name?.toLowerCase().includes(q) ||
-                     t2?.player2?.first_name?.toLowerCase().includes(q) || 
-                     t2?.player2?.last_name?.toLowerCase().includes(q);
-      return matchT1 || matchT2;
+      const searchStr = [
+        t1?.team_name,
+        t1?.player1?.first_name, t1?.player1?.last_name, t1?.player1?.rut, t1?.player1?.phone,
+        t1?.player2?.first_name, t1?.player2?.last_name, t1?.player2?.rut, t1?.player2?.phone,
+        t2?.team_name,
+        t2?.player1?.first_name, t2?.player1?.last_name, t2?.player1?.rut, t2?.player1?.phone,
+        t2?.player2?.first_name, t2?.player2?.last_name, t2?.player2?.rut, t2?.player2?.phone
+      ].join(' ').toLowerCase();
+
+      return searchStr.includes(q);
     });
   }, [viewMatches, selectedGroupKey, selectedStatus, searchQuery]);
 

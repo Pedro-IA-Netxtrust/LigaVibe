@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, Trash2, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/Base';
+import { resultService } from '../../services/resultService';
 
 export type MatchRow = {
   id: string;
@@ -147,6 +148,35 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
     }
   };
 
+  const handleDeleteResult = async () => {
+    if (!window.confirm('¿Eliminar el resultado de este partido? El estado volverá a "Pendiente" y se recalculará la tabla.')) return;
+    setLoading(true);
+    try {
+      await resultService.deleteMatchResult(match.id);
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar resultado');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteMatch = async () => {
+    if (!window.confirm('¿ELIMINAR ESTE PARTIDO? Esta acción borrará el partido del fixture permanentemente.')) return;
+    if (!window.confirm('¿Seguro? Esta acción es irreversible.')) return;
+    setLoading(true);
+    try {
+      await resultService.deleteMatch(match.id);
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar partido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -287,13 +317,42 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Cancelar
-              </Button>
-              <Button type="submit" isLoading={loading}>
-                {winnerId ? 'Guardar Resultado' : 'Guardar Programación'}
-              </Button>
+            <div className="flex justify-between items-center pt-4 border-t border-slate-800">
+              <div className="flex gap-2">
+                {match.status === 'jugado' && (
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
+                    onClick={handleDeleteResult}
+                    disabled={loading}
+                  >
+                    <RotateCcw size={16} className="mr-1.5" />
+                    Resetear
+                  </Button>
+                )}
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                  onClick={handleDeleteMatch}
+                  disabled={loading}
+                >
+                  <Trash2 size={16} className="mr-1.5" />
+                  Eliminar
+                </Button>
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+                  Cancelar
+                </Button>
+                <Button type="submit" isLoading={loading}>
+                  {winnerId ? 'Guardar Resultado' : 'Guardar Programación'}
+                </Button>
+              </div>
             </div>
           </form>
         </motion.div>
