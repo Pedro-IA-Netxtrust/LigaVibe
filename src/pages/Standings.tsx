@@ -175,9 +175,9 @@ export default function Standings() {
               setGroupKey('__all__');
             }}
             className={cn(
-              'px-6 py-4 text-sm font-semibold transition-all duration-200 shrink-0 relative',
+              'px-6 py-4 text-sm font-bold transition-all duration-200 shrink-0 relative',
               categoryId === c.id 
-                ? 'text-indigo-400 bg-indigo-500/5' 
+                ? 'text-white bg-indigo-500/10' 
                 : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
             )}
           >
@@ -185,7 +185,7 @@ export default function Standings() {
             {categoryId === c.id && (
               <motion.div 
                 layoutId="activeCategory"
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" 
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)]" 
               />
             )}
           </button>

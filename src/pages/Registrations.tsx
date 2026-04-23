@@ -126,20 +126,22 @@ export default function Registrations() {
     <div className="space-y-8">
       {/* Category Tabs */}
       <div className="flex border-b border-slate-800 overflow-x-auto custom-scrollbar no-scrollbar">
-        {categories.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setSelectedCategoryId(cat.id)}
             className={cn(
-              "px-6 py-4 text-sm font-medium transition-all relative shrink-0",
+              "px-6 py-4 text-sm font-bold transition-all relative shrink-0",
               selectedCategoryId === cat.id 
-                ? "text-indigo-400" 
-                : "text-slate-500 hover:text-slate-300"
+                ? "text-white bg-indigo-500/10" 
+                : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
             )}
           >
             {cat.name}
             {selectedCategoryId === cat.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+              <motion.div 
+                layoutId="activeCategory"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)]" 
+              />
             )}
           </button>
         ))}

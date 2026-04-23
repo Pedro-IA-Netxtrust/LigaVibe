@@ -87,7 +87,7 @@ export function TeamModal({ isOpen, onClose, onSave, team, category }: TeamModal
 
   // Auto-generate team name based on surnames
   React.useEffect(() => {
-    if (!formData.player1_id) return;
+    if (!formData.player1_id || availablePlayers.length === 0) return;
     
     const p1 = availablePlayers.find(p => p.id === formData.player1_id);
     const p2 = availablePlayers.find(p => p.id === formData.player2_id);
