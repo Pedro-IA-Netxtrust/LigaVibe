@@ -162,21 +162,6 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
     }
   };
 
-  const handleDeleteMatch = async () => {
-    if (!window.confirm('¿ELIMINAR ESTE PARTIDO? Esta acción borrará el partido del fixture permanentemente.')) return;
-    if (!window.confirm('¿Seguro? Esta acción es irreversible.')) return;
-    setLoading(true);
-    try {
-      await resultService.deleteMatch(match.id);
-      onSaved();
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Error al eliminar partido');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -329,20 +314,9 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
                     disabled={loading}
                   >
                     <RotateCcw size={16} className="mr-1.5" />
-                    Resetear
+                    Eliminar Resultado
                   </Button>
                 )}
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="sm"
-                  className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                  onClick={handleDeleteMatch}
-                  disabled={loading}
-                >
-                  <Trash2 size={16} className="mr-1.5" />
-                  Eliminar
-                </Button>
               </div>
 
               <div className="flex gap-2">

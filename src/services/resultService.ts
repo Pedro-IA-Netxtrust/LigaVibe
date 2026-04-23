@@ -217,23 +217,5 @@ export const resultService = {
 
     if (error) throw new Error(mapSupabaseError(error));
     await this.recalculateStandings(m.league_category_id);
-  },
-
-  async deleteMatch(matchId: string) {
-    const { data: m, error: fe } = await supabase
-      .from('league_matches')
-      .select('league_category_id')
-      .eq('id', matchId)
-      .single();
-
-    if (fe || !m) throw new Error(mapSupabaseError(fe || new Error('Partido no encontrado.')));
-
-    const { error } = await supabase
-      .from('league_matches')
-      .delete()
-      .eq('id', matchId);
-
-    if (error) throw new Error(mapSupabaseError(error));
-    await this.recalculateStandings(m.league_category_id);
   }
 };
