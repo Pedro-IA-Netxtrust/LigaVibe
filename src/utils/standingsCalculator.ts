@@ -108,7 +108,7 @@ export function computeStandingsFromMatches(
     }
   }
 
-  const rows = Array.from(byTeam.values()).filter((r) => r.played > 0);
+  const rows = Array.from(byTeam.values());
 
   rows.sort((x, y) => {
     if (y.points !== x.points) return y.points - x.points;

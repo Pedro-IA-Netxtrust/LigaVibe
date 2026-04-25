@@ -187,14 +187,31 @@ export default function Schedule() {
                 <TableRow key={m.id}>
                   <TableCell className="font-bold text-indigo-400">{m.group?.group_name || 'Liga'}</TableCell>
                   <TableCell className="text-slate-500 font-mono">F{m.round}</TableCell>
-                  <TableCell className="font-bold text-white italic">{m.team1?.team_name}</TableCell>
+                  <TableCell className="py-4">
+                    <div className="font-bold text-white italic">{m.team1?.team_name}</div>
+                    <div className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">
+                      {m.team1?.player1?.first_name} {m.team1?.player1?.last_name} / {m.team1?.player2?.first_name} {m.team1?.player2?.last_name}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-slate-600 font-bold">VS</TableCell>
-                  <TableCell className="font-bold text-white italic">{m.team2?.team_name}</TableCell>
+                  <TableCell className="py-4">
+                    <div className="font-bold text-white italic">{m.team2?.team_name}</div>
+                    <div className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">
+                      {m.team2?.player1?.first_name} {m.team2?.player1?.last_name} / {m.team2?.player2?.first_name} {m.team2?.player2?.last_name}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {m.match_date || m.match_time || m.court_name ? (
-                      <div className="text-[11px] text-indigo-400 font-bold leading-tight">
-                        {m.match_date} - {m.match_time}
-                        <div className="text-slate-500 font-normal">{m.court_name}</div>
+                      <div className="space-y-1">
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[11px] text-indigo-300 font-bold">
+                          <CalendarIcon size={12} />
+                          {m.match_date} - {m.match_time}
+                        </div>
+                        {m.court_name && (
+                          <div className="px-2 py-0.5 text-[10px] text-emerald-400 font-bold uppercase tracking-widest bg-emerald-500/5 border border-emerald-500/10 rounded w-fit">
+                            {m.court_name}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <span className="text-[10px] text-slate-600 font-bold uppercase italic">Sin asignar</span>

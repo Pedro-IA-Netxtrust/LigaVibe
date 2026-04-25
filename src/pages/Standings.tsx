@@ -98,7 +98,15 @@ export default function Standings() {
 
     // Compute standings for each group
     Object.keys(groups).forEach(gid => {
-      const groupMatches = matches.filter(m => (m.league_group_id || '__liga__') === gid && m.status === 'jugado');
+      const allGroupMatches = matches.filter(m => (m.league_group_id || '__liga__') === gid);
+      const groupMatches = allGroupMatches.filter(m => m.status === 'jugado');
+      
+      const groupTeamNames: Record<string, string> = {};
+      allGroupMatches.forEach(m => {
+        if (m.team1?.team_name) groupTeamNames[m.team1_id] = m.team1.team_name;
+        if (m.team2?.team_name) groupTeamNames[m.team2_id] = m.team2.team_name;
+      });
+
       const slice = groupMatches.map(m => ({
         team1_id: m.team1_id,
         team2_id: m.team2_id,
@@ -108,7 +116,7 @@ export default function Standings() {
         team1_games: m.team1_games,
         team2_games: m.team2_games
       }));
-      groups[gid].rows = computeStandingsFromMatches(slice, teamNames);
+      groups[gid].rows = computeStandingsFromMatches(slice, groupTeamNames);
     });
 
     return groups;

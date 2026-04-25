@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { Card, Button } from '../components/ui/Base';
 import { Table, TableRow, TableCell } from '../components/ui/Table';
 import { LoadingState, EmptyState } from '../components/ui/States';
@@ -126,8 +127,10 @@ export default function Registrations() {
     <div className="space-y-8">
       {/* Category Tabs */}
       <div className="flex border-b border-slate-800 overflow-x-auto custom-scrollbar no-scrollbar">
+        {categories.map((cat) => (
           <button
             key={cat.id}
+            type="button"
             onClick={() => setSelectedCategoryId(cat.id)}
             className={cn(
               "px-6 py-4 text-sm font-bold transition-all relative shrink-0",

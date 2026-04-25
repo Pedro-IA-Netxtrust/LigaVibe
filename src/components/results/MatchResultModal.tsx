@@ -42,6 +42,15 @@ interface MatchResultModalProps {
 
 const COURT_OPTIONS = ["Cancha 1", "Cancha 2", "Cancha 3", "Cancha 4", "Cancha 5", "Cancha 6"];
 
+const TIME_OPTIONS: string[] = [];
+for (let h = 8; h <= 22; h++) {
+  const hour = h.toString().padStart(2, '0');
+  TIME_OPTIONS.push(`${hour}:00`);
+  if (h !== 22) {
+    TIME_OPTIONS.push(`${hour}:30`);
+  }
+}
+
 export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: MatchResultModalProps) {
   const [winnerId, setWinnerId] = React.useState<string>('');
   const [s1t1, setS1t1] = React.useState<number | ''>('');
@@ -65,7 +74,7 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
     setS2t1(''); setS2t2('');
     setS3t1(''); setS3t2('');
     setDate(match.match_date || '');
-    setTime(match.match_time || '');
+    setTime(match.match_time ? match.match_time.substring(0, 5) : '');
     setCourt(match.court_name || '');
     setComment(match.comment || '');
     setError(null);
@@ -267,12 +276,16 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Hora</label>
-                  <input
-                    type="time"
+                  <select
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200"
-                  />
+                  >
+                    <option value="">-- Selecciona hora --</option>
+                    {TIME_OPTIONS.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

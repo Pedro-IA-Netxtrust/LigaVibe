@@ -54,6 +54,21 @@ export const resultService = {
     await this.assertCategoryAllowsResults(m.league_category_id);
 
     const isResult = opts.winnerTeamId && opts.mode !== 'schedule';
+
+    if (opts.match_date && opts.match_time && opts.court_name) {
+      const { data: conflicts, error: conflictErr } = await supabase
+        .from('league_matches')
+        .select('id')
+        .eq('match_date', opts.match_date)
+        .eq('match_time', opts.match_time)
+        .eq('court_name', opts.court_name)
+        .neq('id', matchId);
+
+      if (conflictErr) throw new Error(mapSupabaseError(conflictErr));
+      if (conflicts && conflicts.length > 0) {
+        throw new Error(`La ${opts.court_name} ya se encuentra ocupada el ${opts.match_date} a las ${opts.match_time}. Selecciona otra cancha u horario.`);
+      }
+    }
     
     let updatePayload: any = {
       match_date: opts.match_date,

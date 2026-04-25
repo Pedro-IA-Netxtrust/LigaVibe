@@ -351,6 +351,7 @@ export default function Fixture() {
   return (
     <div className="space-y-8">
       <div className="flex border-b border-slate-800 overflow-x-auto custom-scrollbar no-scrollbar">
+        {categories.map((cat) => (
           <button
             key={cat.id}
             type="button"
