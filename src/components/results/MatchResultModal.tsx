@@ -6,8 +6,8 @@ import { resultService } from '../../services/resultService';
 
 export type MatchRow = {
   id: string;
-  team1_id: string;
-  team2_id: string;
+  team1_id: string | null;
+  team2_id: string | null;
   team1?: { team_name?: string };
   team2?: { team_name?: string };
   status: string;
@@ -16,6 +16,12 @@ export type MatchRow = {
   court_name?: string | null;
   comment?: string | null;
   winner_id?: string | null;
+  s1_t1?: number | null;
+  s1_t2?: number | null;
+  s2_t1?: number | null;
+  s2_t2?: number | null;
+  s3_t1?: number | null;
+  s3_t2?: number | null;
 };
 
 interface MatchResultModalProps {
@@ -32,6 +38,12 @@ interface MatchResultModalProps {
       team2_sets?: number;
       team1_games?: number;
       team2_games?: number;
+      s1_t1?: number | null;
+      s1_t2?: number | null;
+      s2_t1?: number | null;
+      s2_t2?: number | null;
+      s3_t1?: number | null;
+      s3_t2?: number | null;
       match_date?: string | null;
       match_time?: string | null;
       court_name?: string | null;
@@ -69,10 +81,13 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
 
   React.useEffect(() => {
     if (!match || !isOpen) return;
-    setWinnerId(match.status === 'jugado' ? (match.winner_id || '') : '');
-    setS1t1(''); setS1t2('');
-    setS2t1(''); setS2t2('');
-    setS3t1(''); setS3t2('');
+    setWinnerId(match.winner_id || '');
+    setS1t1(match.s1_t1 !== null && match.s1_t1 !== undefined ? Number(match.s1_t1) : '');
+    setS1t2(match.s1_t2 !== null && match.s1_t2 !== undefined ? Number(match.s1_t2) : '');
+    setS2t1(match.s2_t1 !== null && match.s2_t1 !== undefined ? Number(match.s2_t1) : '');
+    setS2t2(match.s2_t2 !== null && match.s2_t2 !== undefined ? Number(match.s2_t2) : '');
+    setS3t1(match.s3_t1 !== null && match.s3_t1 !== undefined ? Number(match.s3_t1) : '');
+    setS3t2(match.s3_t2 !== null && match.s3_t2 !== undefined ? Number(match.s3_t2) : '');
     setDate(match.match_date || '');
     setTime(match.match_time ? match.match_time.substring(0, 5) : '');
     setCourt(match.court_name || '');
@@ -143,6 +158,12 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
         team2_sets,
         team1_games,
         team2_games,
+        s1_t1: s1t1 !== '' ? Number(s1t1) : null,
+        s1_t2: s1t2 !== '' ? Number(s1t2) : null,
+        s2_t1: s2t1 !== '' ? Number(s2t1) : null,
+        s2_t2: s2t2 !== '' ? Number(s2t2) : null,
+        s3_t1: s3t1 !== '' ? Number(s3t1) : null,
+        s3_t2: s3t2 !== '' ? Number(s3t2) : null,
         match_date: date || null,
         match_time: time || null,
         court_name: court || null,
@@ -222,8 +243,8 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 font-semibold focus:ring-2 focus:ring-indigo-500 transition-all"
                 >
                   <option value="">Solo programar (sin ganador)</option>
-                  <option value={match.team1_id}>{match.team1?.team_name}</option>
-                  <option value={match.team2_id}>{match.team2?.team_name}</option>
+                  {match.team1_id && <option value={match.team1_id}>{match.team1?.team_name || 'Pareja 1'}</option>}
+                  {match.team2_id && <option value={match.team2_id}>{match.team2?.team_name || 'Pareja 2'}</option>}
                 </select>
               </div>
 

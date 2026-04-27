@@ -185,5 +185,16 @@ export const fixtureService = {
     const { error } = await supabase.from('league_matches').insert(allMatches);
     if (error) throw new Error(mapSupabaseError(error));
     return true;
+  },
+  
+  async clearPlayoffs(categoryId: string) {
+    const { error } = await supabase
+      .from('league_matches')
+      .delete()
+      .eq('league_category_id', categoryId)
+      .eq('phase', 2);
+    
+    if (error) throw new Error(mapSupabaseError(error));
+    return true;
   }
 };

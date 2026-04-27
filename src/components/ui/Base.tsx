@@ -36,6 +36,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   title?: string;
+  key?: React.Key;
 }
 
 export function Button({ 

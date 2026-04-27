@@ -3,12 +3,12 @@ import { motion } from 'motion/react';
 import { Card, Button } from '../components/ui/Base';
 import { Table, TableRow, TableCell } from '../components/ui/Table';
 import { LoadingState, EmptyState } from '../components/ui/States';
-import { 
-  UserPlus, 
-  ChevronUp, 
-  ChevronDown, 
-  Edit2, 
-  Trash2, 
+import {
+  UserPlus,
+  ChevronUp,
+  ChevronDown,
+  Edit2,
+  Trash2,
   Star,
   CheckCircle2,
   Circle,
@@ -24,9 +24,9 @@ import { cn } from '../lib/utils';
 export default function Registrations() {
   const { categories, loading: loadingCats } = useCategories();
   const [selectedCategoryId, setSelectedCategoryId] = React.useState<string>('');
-  
+
   const selectedCategory = categories.find(c => c.id === selectedCategoryId);
-  
+
   const { teams, loading, error, refresh, reorderTeams } = useTeams(selectedCategoryId);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [selectedTeam, setSelectedTeam] = React.useState<any | null>(null);
@@ -65,9 +65,9 @@ export default function Registrations() {
   const moveTeam = async (index: number, direction: 'up' | 'down') => {
     const newTeams = [...teams];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    
+
     if (targetIndex < 0 || targetIndex >= teams.length) return;
-    
+
     [newTeams[index], newTeams[targetIndex]] = [newTeams[targetIndex], newTeams[index]];
     await reorderTeams(newTeams);
   };
@@ -134,16 +134,16 @@ export default function Registrations() {
             onClick={() => setSelectedCategoryId(cat.id)}
             className={cn(
               "px-6 py-4 text-sm font-bold transition-all relative shrink-0",
-              selectedCategoryId === cat.id 
-                ? "text-white bg-indigo-500/10" 
+              selectedCategoryId === cat.id
+                ? "text-white bg-indigo-500/10"
                 : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
             )}
           >
             {cat.name}
             {selectedCategoryId === cat.id && (
-              <motion.div 
+              <motion.div
                 layoutId="activeCategory"
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)]" 
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)]"
               />
             )}
           </button>
@@ -163,9 +163,9 @@ export default function Registrations() {
         <div className="flex flex-1 md:max-w-md w-full gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input 
-              type="text" 
-              placeholder="Buscar por nombre, RUT, teléfono..." 
+            <input
+              type="text"
+              placeholder="Buscar por nombre, RUT, teléfono..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
@@ -190,23 +190,23 @@ export default function Registrations() {
           <LoadingState />
         </Card>
       ) : !selectedCategoryId ? (
-        <EmptyState 
-          icon={UserPlus} 
-          title="Selecciona una categoría" 
-          description="Debes seleccionar una categoría para gestionar sus inscripciones." 
+        <EmptyState
+          icon={UserPlus}
+          title="Selecciona una categoría"
+          description="Debes seleccionar una categoría para gestionar sus inscripciones."
         />
       ) : filteredTeams.length === 0 ? (
-        <EmptyState 
-          icon={UserPlus} 
-          title={searchQuery ? "Sin resultados" : "Sin inscritos"} 
-          description={searchQuery ? "No hay parejas que coincidan con tu búsqueda." : "Aún no hay parejas inscritas en esta categoría."} 
+        <EmptyState
+          icon={UserPlus}
+          title={searchQuery ? "Sin resultados" : "Sin inscritos"}
+          description={searchQuery ? "No hay parejas que coincidan con tu búsqueda." : "Aún no hay parejas inscritas en esta categoría."}
         />
       ) : (
         <Card className="border-none bg-transparent! p-0!">
           <Table headers={['№', 'Categoría', 'Pareja / Jugadores', 'Estado', 'P1', 'P2', 'Seed', 'Acciones']}>
             {filteredTeams.map((team, index) => {
               const isIncomplete = !team.player2_id;
-              
+
               return (
                 <TableRow key={team.id}>
                   <TableCell className="w-12 font-mono text-slate-500 text-center">
@@ -238,31 +238,31 @@ export default function Registrations() {
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    {team.paid_player1 
-                      ? <CheckCircle2 size={18} className="text-green-500 mx-auto" /> 
+                    {team.paid_player1
+                      ? <CheckCircle2 size={18} className="text-green-500 mx-auto" />
                       : <Circle size={18} className="text-slate-800 mx-auto" />}
                   </TableCell>
                   <TableCell className="text-center">
-                    {team.paid_player2 
-                      ? <CheckCircle2 size={18} className="text-green-500 mx-auto" /> 
+                    {team.paid_player2
+                      ? <CheckCircle2 size={18} className="text-green-500 mx-auto" />
                       : <Circle size={18} className="text-slate-800 mx-auto" />}
                   </TableCell>
                   <TableCell className="text-center">
-                    {team.is_seeded 
-                      ? <Star size={18} className="text-amber-500 mx-auto" fill="currentColor" /> 
+                    {team.is_seeded
+                      ? <Star size={18} className="text-amber-500 mx-auto" fill="currentColor" />
                       : <div className="w-5 h-5 mx-auto" />}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <div className="flex flex-col gap-0.5 mr-2">
-                        <button 
+                        <button
                           onClick={() => moveTeam(index, 'up')}
                           disabled={index === 0}
                           className="p-1 hover:text-indigo-400 disabled:opacity-20 text-slate-600 transition-colors"
                         >
                           <ChevronUp size={14} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => moveTeam(index, 'down')}
                           disabled={index === teams.length - 1}
                           className="p-1 hover:text-indigo-400 disabled:opacity-20 text-slate-600 transition-colors"
@@ -270,17 +270,17 @@ export default function Registrations() {
                           <ChevronDown size={14} />
                         </button>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="text-slate-500 hover:text-indigo-400"
                         onClick={() => handleEdit(team)}
                       >
                         <Edit2 size={16} />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="text-slate-500 hover:text-red-400"
                         onClick={() => handleDelete(team.id)}
                       >

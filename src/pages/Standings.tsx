@@ -123,10 +123,11 @@ export default function Standings() {
   }, [matches, teamNames]);
 
   const displayedGroups = React.useMemo(() => {
+    type GroupEntry = { id: string; label: string; rows: ComputedStanding[] };
     if (groupKey === '__all__') {
-      return Object.entries(standingsByGroup)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([id, data]) => ({ id, ...data }));
+      return (Object.entries(standingsByGroup) as [string, { label: string; rows: ComputedStanding[] }][])
+        .sort(([, a], [, b]) => a.label.localeCompare(b.label))
+        .map(([id, data]): GroupEntry => ({ id, ...data }));
     }
     return [
       { 

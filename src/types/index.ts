@@ -61,11 +61,18 @@ export interface LeagueMatch {
   team2_id: string;
   winner_id: string | null;
   round: number;
+  phase?: number;
   status: 'pendiente' | 'jugado' | 'live';
   team1_sets: number;
   team1_games: number;
   team2_sets: number;
   team2_games: number;
+  s1_t1?: number | null;
+  s1_t2?: number | null;
+  s2_t1?: number | null;
+  s2_t2?: number | null;
+  s3_t1?: number | null;
+  s3_t2?: number | null;
   match_date?: string | null;
   match_time?: string | null;
   court_name?: string | null;
@@ -92,4 +99,108 @@ export interface LeagueStanding {
   games_against: number;
   created_at: string;
   updated_at: string;
+}
+
+// ---- PLAYOFF / PHASE CLOSURE TYPES ----
+
+export interface PhaseClosureRecord {
+  id: string;
+  league_category_id: string;
+  phase_closed: number;
+  closed_at: string;
+  total_matches: number;
+  played_matches: number;
+  pending_matches: number;
+  was_forced: boolean;
+  notes: string | null;
+}
+
+export interface PhaseSnapshotRow {
+  id: string;
+  league_phase_closure_id: string;
+  league_category_id: string;
+  league_group_id: string | null;
+  league_team_id: string;
+  team_name?: string;
+  group_name?: string;
+  phase: number;
+  final_rank: number;
+  classified: boolean;
+  points: number;
+  played: number;
+  won: number;
+  lost: number;
+  sets_for: number;
+  sets_against: number;
+  games_for: number;
+  games_against: number;
+}
+
+export interface PlayoffConfig {
+  id?: string;
+  league_category_id: string;
+  phase: number;
+  qualifiers_count: 2 | 4 | 8;
+  bracket_type: 'single_elimination';
+  cross_groups: boolean;
+  protect_seeds: boolean;
+}
+
+export interface ClassifiedTeam {
+  league_team_id: string;
+  team_name: string;
+  group_id: string | null;
+  group_name: string | null;
+  rank_in_group: number;  // 1=1st place in group
+  overall_rank: number;
+  points: number;
+  sets_diff: number;
+  games_diff: number;
+  is_bye?: boolean;
+}
+
+export interface TieGroup {
+  group_id: string | null;
+  teams: string[];  // league_team_ids
+  rank_position: number;  // which rank position they're all tied at
+}
+
+export interface PhaseClosePreview {
+  total_matches: number;
+  played_matches: number;
+  pending_matches: number;
+  can_close_normally: boolean;
+  classified: ClassifiedTeam[];
+  ties_at_boundary: TieGroup[];  // ties that affect who classifies
+  recommended_qualifiers: number;
+}
+
+export interface BracketMatch {
+  id: string;
+  playoff_slot: string;
+  round: number;
+  phase: number;
+  team1_id: string | null;
+  team2_id: string | null;
+  team1_name?: string;
+  team2_name?: string;
+  winner_id: string | null;
+  status: string;
+  source_match1_id: string | null;
+  source_match2_id: string | null;
+  comment: string | null;
+  is_bye: boolean;
+  s1_t1?: number | null;
+  s1_t2?: number | null;
+  s2_t1?: number | null;
+  s2_t2?: number | null;
+  s3_t1?: number | null;
+  s3_t2?: number | null;
+  team1_sets?: number;
+  team2_sets?: number;
+  team1_games?: number;
+  team2_games?: number;
+  match_date?: string | null;
+  match_time?: string | null;
+  court_name?: string | null;
 }

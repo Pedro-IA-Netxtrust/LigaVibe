@@ -6,7 +6,7 @@ import { Search, X as CloseIcon, Clock, Calendar as CalendarIcon } from 'lucide-
 import { useCategories } from '../hooks/useTeams';
 import { fixtureService } from '../services/fixtureService';
 import { resultService } from '../services/resultService';
-import { cn } from '../lib/utils';
+import { cn, formatDate } from '../lib/utils';
 import { motion } from 'motion/react';
 import { MatchResultModal, MatchRow } from '../components/results/MatchResultModal';
 
@@ -161,14 +161,18 @@ export default function Schedule() {
                 className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500/20 outline-none"
               >
                 <option value="all">Todos los grupos</option>
-                {Array.from(new Set(viewMatches.map(m => m.league_group_id || '__liga__'))).sort().map(gid => {
-                  if (gid === '__liga__') {
-                    if (!viewMatches.some(m => !m.league_group_id)) return null;
-                    return <option key="__liga__" value="__liga__">Liga Única</option>;
-                  }
-                  const gname = viewMatches.find(m => m.league_group_id === gid)?.group?.group_name || 'Grupo';
-                  return <option key={gid} value={gid}>{gname}</option>;
-                })}
+                {Array.from(new Set(viewMatches.map(m => m.league_group_id || '__liga__')))
+                  .map(gid => {
+                    const gname = gid === '__liga__' 
+                      ? 'Liga Única' 
+                      : (viewMatches.find(m => m.league_group_id === gid)?.group?.group_name || 'Grupo');
+                    return { id: gid, name: gname };
+                  })
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(g => {
+                    if (g.id === '__liga__' && !viewMatches.some(m => !m.league_group_id)) return null;
+                    return <option key={g.id} value={g.id}>{g.name}</option>;
+                  })}
               </select>
             </div>
           </div>
@@ -205,7 +209,7 @@ export default function Schedule() {
                       <div className="space-y-1">
                         <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[11px] text-indigo-300 font-bold">
                           <CalendarIcon size={12} />
-                          {m.match_date} - {m.match_time}
+                          {formatDate(m.match_date)} - {m.match_time}
                         </div>
                         {m.court_name && (
                           <div className="px-2 py-0.5 text-[10px] text-emerald-400 font-bold uppercase tracking-widest bg-emerald-500/5 border border-emerald-500/10 rounded w-fit">

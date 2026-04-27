@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, fetchData } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { LeagueCategory } from '../types';
 
 export function useCategories() {
@@ -10,10 +10,12 @@ export function useCategories() {
   useEffect(() => {
     async function loadCategories() {
       try {
-        const data = await fetchData<LeagueCategory>(
-          supabase.from('league_categories').select('*').order('name')
-        );
-        setCategories(data);
+        const { data, error: err } = await supabase
+          .from('league_categories')
+          .select('*')
+          .order('name');
+        if (err) throw err;
+        setCategories(data || []);
       } catch (err) {
         setError(err);
       } finally {
@@ -35,10 +37,12 @@ export function usePlayers() {
   useEffect(() => {
     async function loadPlayers() {
       try {
-        const data = await fetchData<any>(
-          supabase.from('clients').select('*').order('last_name')
-        );
-        setPlayers(data);
+        const { data, error: err } = await supabase
+          .from('clients')
+          .select('*')
+          .order('last_name');
+        if (err) throw err;
+        setPlayers(data || []);
       } catch (err) {
         setError(err);
       } finally {

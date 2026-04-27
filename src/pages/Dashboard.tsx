@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from '../components/ui/Base';
 import { Table, TableRow, TableCell } from '../components/ui/Table';
-import { cn } from '../lib/utils';
+import { cn, formatDate } from '../lib/utils';
 import { dashboardService } from '../services/dashboardService';
 import { LoadingState } from '../components/ui/States';
 import { Trophy, Calendar, AlertCircle, Clock, DollarSign } from 'lucide-react';
@@ -121,7 +121,7 @@ export default function Dashboard() {
                       </div>
                       <div className="text-right">
                         <div className="text-[11px] font-bold text-indigo-400 flex items-center gap-1">
-                          <Calendar size={12} /> {m.match_date}
+                          <Calendar size={12} /> {formatDate(m.match_date)}
                         </div>
                         <div className="text-[10px] text-slate-500 flex items-center gap-1 justify-end">
                           <Clock size={10} /> {m.match_time}

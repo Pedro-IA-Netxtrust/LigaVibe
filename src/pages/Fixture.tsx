@@ -25,11 +25,16 @@ import { fixtureService } from '../services/fixtureService';
 import { resultService } from '../services/resultService';
 import { teamService } from '../services/teamService';
 import { FixtureEngine, GroupConfig } from '../utils/fixtureEngine';
-import { cn } from '../lib/utils';
+import { cn, formatDate } from '../lib/utils';
 import { LeagueTeam, LeagueMatch } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { MatchResultModal, MatchRow } from '../components/results/MatchResultModal';
 import { computeStandingsFromMatches } from '../utils/standingsCalculator';
+import { phaseService } from '../services/phaseService';
+import { playoffService } from '../services/playoffService';
+import { PhaseCloseModal } from '../components/playoff/PhaseCloseModal';
+import { BracketView } from '../components/playoff/BracketView';
+import type { PhaseClosePreview, TieGroup, PlayoffConfig, BracketMatch } from '../types';
 
 type PreviewState = { groups: GroupConfig[]; matches: Partial<any>[] };
 
@@ -44,10 +49,24 @@ export default function Fixture() {
   const [groupSize, setGroupSize] = React.useState<number>(3);
   const [previewTeams, setPreviewTeams] = React.useState<LeagueTeam[]>([]);
   const [isDoubleRound, setIsDoubleRound] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<'structure' | 'played'>('structure');
+  const [activeTab, setActiveTab] = React.useState<'structure' | 'played' | 'playoffs'>('structure');
   const [selectedGroupKey, setSelectedGroupKey] = React.useState<string>('__all__');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
   const [modalMatch, setModalMatch] = React.useState<MatchRow | null>(null);
+  const [showPlayoffPrep, setShowPlayoffPrep] = React.useState(false);
+  const [suggestedClassified, setSuggestedClassified] = React.useState<any[]>([]);
+  const [playoffSize, setPlayoffSize] = React.useState<number>(4);
+
+  // Phase closure
+  const [showPhaseCloseModal, setShowPhaseCloseModal] = React.useState(false);
+  const [phaseClosePreview, setPhaseClosePreview] = React.useState<PhaseClosePreview | null>(null);
+  const [phaseCloseLoading, setPhaseCloseLoading] = React.useState(false);
+  const [phaseQualifiers, setPhaseQualifiers] = React.useState<number>(4);
+
+  // Bracket
+  const [bracketMatches, setBracketMatches] = React.useState<BracketMatch[]>([]);
+  const [bracketLoading, setBracketLoading] = React.useState(false);
+  const [playoffConfig, setPlayoffConfig] = React.useState<PlayoffConfig | null>(null);
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
   const n = status?.teamCount ?? 0;
@@ -215,12 +234,65 @@ export default function Fixture() {
   };
 
   const handleCloseFixture = async () => {
-    if (!window.confirm('¿Cerrar fixture? Podrás cargar resultados con seguridad; para borrar todo primero cierra si aún no lo está.'))
-      return;
+    if (!selectedCategoryId) return;
+    setPhaseCloseLoading(true);
+    setError(null);
+    try {
+      const preview = await phaseService.previewPhaseClose(selectedCategoryId, phaseQualifiers);
+      setPhaseClosePreview(preview);
+      setPhaseQualifiers(preview.recommended_qualifiers);
+      setShowPhaseCloseModal(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPhaseCloseLoading(false);
+    }
+  };
+
+  const handleStartPlayoffPrep = async () => {
+    if (!selectedCategoryId) return;
+    setActiveTab('playoffs');
+    setBracketLoading(true);
+    try {
+      const bracket = await playoffService.getBracket(selectedCategoryId);
+      setBracketMatches(bracket);
+      const cfg = await playoffService.getConfig(selectedCategoryId);
+      setPlayoffConfig(cfg);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setBracketLoading(false);
+    }
+  };
+
+  const handleConfirmPhaseClose = async (forced: boolean, notes: string) => {
+    if (!selectedCategoryId || !phaseClosePreview) return;
+    setPhaseCloseLoading(true);
+    try {
+      await phaseService.closePhase(selectedCategoryId, phaseQualifiers, phaseClosePreview, { forced, notes });
+      setShowPhaseCloseModal(false);
+      await loadStatusAndData();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPhaseCloseLoading(false);
+    }
+  };
+
+  const handleGenerateBracket = async () => {
+    if (!selectedCategoryId || !phaseClosePreview) return;
     setLoading(true);
     try {
-      await fixtureService.setCategoryClosed(selectedCategoryId, true);
-      await loadStatusAndData();
+      const cfg = await playoffService.saveConfig(selectedCategoryId, {
+        qualifiers_count: phaseQualifiers as 2 | 4 | 8,
+        cross_groups: true,
+        protect_seeds: true,
+      });
+      const topTeams = (phaseClosePreview?.classified ?? suggestedClassified).slice(0, phaseQualifiers);
+      await playoffService.generateBracket(selectedCategoryId, topTeams, cfg);
+      const bracket = await playoffService.getBracket(selectedCategoryId);
+      setBracketMatches(bracket);
+      setPlayoffConfig(cfg);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -228,33 +300,37 @@ export default function Fixture() {
     }
   };
 
-  const handleGeneratePlayoff = async () => {
+  const handleConfirmPlayoffs = async (size: number) => {
     if (!selectedCategoryId) return;
-    const teamsToPick = window.confirm('¿Generar Cuartos de Final (Top 8)? Cancele para generar Semifinales (Top 4).') ? 8 : 4;
-    
     setLoading(true);
-    setError(null);
     try {
-      const m = await fixtureService.getMatchesWithTeams(selectedCategoryId);
       const allTeams = await teamService.getByCategoryId(selectedCategoryId);
-      const names: Record<string, string> = {};
-      allTeams.forEach(t => names[t.id] = t.team_name);
-      
-      const finished = m.filter(x => x.status === 'jugado');
-      const standings = computeStandingsFromMatches(finished, names);
-      
-      const topIds = standings.slice(0, teamsToPick).map(s => s.league_team_id);
+      const topIds = suggestedClassified.slice(0, size).map(s => s.league_team_id);
       const topTeams = allTeams.filter(t => topIds.includes(t.id))
         .sort((a, b) => topIds.indexOf(a.id) - topIds.indexOf(b.id));
 
       if (topTeams.length < 2) {
-        throw new Error('No hay suficientes equipos con partidos jugados para generar un playoff.');
+        throw new Error('No hay suficientes equipos seleccionados.');
       }
 
       const playoffMatches = FixtureEngine.generatePlayoffs(topTeams, selectedCategoryId);
       await fixtureService.savePlayoffMatches(playoffMatches);
+      setShowPlayoffPrep(false);
       await loadStatusAndData();
       alert('¡Playoffs generados con éxito!');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemovePlayoffs = async () => {
+    if (!window.confirm('¿Eliminar todos los partidos de Playoff (Fase 2)?')) return;
+    setLoading(true);
+    try {
+      await fixtureService.clearPlayoffs(selectedCategoryId);
+      await loadStatusAndData();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -429,13 +505,25 @@ export default function Fixture() {
             </Button>
           )}
           {status?.state === 'closed' && (
-            <Button variant="primary" size="md" onClick={handleGeneratePlayoff} disabled={busy}>
+            <Button variant="primary" size="md" onClick={handleStartPlayoffPrep} disabled={busy}>
               <Trophy size={18} className="mr-2" />
-              Generar Playoff
+              Ver Playoffs
             </Button>
           )}
         </div>
       </div>
+
+      {/* Phase Close Modal */}
+      <PhaseCloseModal
+        isOpen={showPhaseCloseModal}
+        preview={phaseClosePreview}
+        loading={phaseCloseLoading}
+        qualifiers={phaseQualifiers}
+        onQualifiersChange={setPhaseQualifiers}
+        onConfirm={handleConfirmPhaseClose}
+        onClose={() => setShowPhaseCloseModal(false)}
+        onResolveTie={(tie: TieGroup) => console.log('Resolve tie:', tie)}
+      />
 
       {error && (
         <div className="p-4 bg-red-400/10 border border-red-500/20 rounded-xl text-red-500 text-sm flex items-center gap-3">
@@ -737,6 +825,19 @@ export default function Fixture() {
                     </div>
                     {activeTab === 'played' && <motion.div layoutId="subtab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
                   </button>
+
+                  <button
+                    onClick={() => setActiveTab('playoffs')}
+                    className={cn(
+                      'px-6 py-3 text-sm font-medium relative',
+                      activeTab === 'playoffs' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Trophy size={16} /> Fase 2: Playoffs
+                    </div>
+                    {activeTab === 'playoffs' && <motion.div layoutId="subtab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
@@ -747,14 +848,18 @@ export default function Fixture() {
                       className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                     >
                       <option value="__all__">Todos los grupos</option>
-                      {Array.from(new Set(viewMatches.map(m => m.league_group_id || '__liga__'))).sort().map(gid => {
-                        if (gid === '__liga__') {
-                          if (!viewMatches.some(m => !m.league_group_id)) return null;
-                          return <option key="__liga__" value="__liga__">Liga Única</option>;
-                        }
-                        const gname = viewMatches.find(m => m.league_group_id === gid)?.group?.group_name || 'Grupo';
-                        return <option key={gid} value={gid}>{gname}</option>;
-                      })}
+                      {Array.from(new Set(viewMatches.map(m => m.league_group_id || '__liga__')))
+                        .map(gid => {
+                          const gname = gid === '__liga__' 
+                            ? 'Liga Única' 
+                            : (viewMatches.find(m => m.league_group_id === gid)?.group?.group_name || 'Grupo');
+                          return { id: gid, name: gname };
+                        })
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(g => {
+                          if (g.id === '__liga__' && !viewMatches.some(m => !m.league_group_id)) return null;
+                          return <option key={g.id} value={g.id}>{g.name}</option>;
+                        })}
                     </select>
                   </div>
 
@@ -844,7 +949,12 @@ export default function Fixture() {
                                         </div>
                                         <div className="flex justify-between items-end mt-2">
                                           <div className="text-[10px] text-slate-400">
-                                            {m.match_date ? `${m.match_date} ${m.match_time}` : "Sin fecha"}
+                                            {m.match_date ? `${formatDate(m.match_date)} ${m.match_time}` : "Sin fecha"}
+                                            {m.status === 'jugado' && (
+                                              <div className="text-indigo-400 font-bold mt-0.5">
+                                                Resultado: {m.s1_t1}-{m.s1_t2} {m.s2_t1 ? `, ${m.s2_t1}-${m.s2_t2}` : ''} {m.s3_t1 ? `, ${m.s3_t1}-${m.s3_t2}` : ''}
+                                              </div>
+                                            )}
                                           </div>
                                           <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setModalMatch({ ...m })}>
                                             {m.status === 'jugado' ? 'Editar' : 'Cargar'}
@@ -894,6 +1004,56 @@ export default function Fixture() {
                       </div>
                     ));
                   })()}
+                </div>
+              ) : activeTab === 'playoffs' ? (
+                <div className="space-y-6">
+                  {/* Config bar */}
+                  <div className="flex flex-wrap justify-between items-center gap-3 px-1">
+                    <h3 className="text-xl font-bold text-amber-400 flex items-center gap-2">
+                      <Trophy size={20} /> Fase 2: Playoffs
+                    </h3>
+                    <div className="flex gap-2">
+                      {status?.state === 'closed' && bracketMatches.length === 0 && (
+                        <Button onClick={handleGenerateBracket} disabled={!phaseClosePreview && bracketMatches.length === 0}>
+                          Generar Cuadro
+                        </Button>
+                      )}
+                      {bracketMatches.length > 0 && (
+                        <Button variant="danger" size="sm" onClick={handleRemovePlayoffs}>
+                          Reiniciar Cuadro
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {status?.state !== 'closed' && bracketMatches.length === 0 && (
+                    <div className="flex items-center gap-3 p-4 bg-slate-800/40 border border-slate-700 rounded-xl text-slate-400 text-sm">
+                      <AlertCircle size={16} className="text-amber-400" />
+                      Cierra la fase regular usando el botón <strong className="text-white">"Cerrar fixture"</strong> para habilitar el playoff.
+                    </div>
+                  )}
+
+                  {status?.state === 'closed' && bracketMatches.length === 0 && !phaseClosePreview && (
+                    <div className="flex items-center gap-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl text-slate-300 text-sm">
+                      <AlertCircle size={16} className="text-amber-400" />
+                      El fixture está cerrado. Haz clic en <strong>"Generar Cuadro"</strong> o vuelve al botón <strong>"Cerrar fixture"</strong> para seleccionar los clasificados.
+                    </div>
+                  )}
+
+                  <BracketView
+                    matches={bracketMatches}
+                    onEditMatch={(m) => setModalMatch(m)}
+                    onResultSaved={async () => {
+                      const updated = await playoffService.getBracket(selectedCategoryId);
+                      setBracketMatches(updated);
+                    }}
+                    onSubmitResult={async (matchId, payload) => {
+                      await resultService.updateMatchResult(matchId, payload);
+                      if (payload.winnerTeamId) {
+                        await playoffService.advanceWinner(matchId, payload.winnerTeamId);
+                      }
+                    }}
+                  />
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -962,7 +1122,12 @@ export default function Fixture() {
                                     {p2}
                                   </TableCell>
                                   <TableCell className="font-mono text-center font-bold text-indigo-400">
-                                    {m.team1_sets}-{m.team2_sets}
+                                    <div>{m.team1_sets}-{m.team2_sets}</div>
+                                    <div className="text-[10px] text-slate-500 font-normal">
+                                      ({m.s1_t1}-{m.s1_t2}
+                                      {m.s2_t1 !== null && m.s2_t1 !== undefined ? `, ${m.s2_t1}-${m.s2_t2}` : ''}
+                                      {m.s3_t1 !== null && m.s3_t1 !== undefined ? `, ${m.s3_t1}-${m.s3_t2}` : ''})
+                                    </div>
                                   </TableCell>
                                   <TableCell>
                                     <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-bold uppercase">
@@ -974,7 +1139,7 @@ export default function Fixture() {
                                       <div className="text-[10px] flex flex-col gap-0.5">
                                         {(m.match_date || m.match_time) && (
                                           <span className="text-slate-300 font-medium">
-                                            {m.match_date || ''} {m.match_time || ''}
+                                            {formatDate(m.match_date)} {m.match_time || ''}
                                           </span>
                                         )}
                                         {m.court_name && (

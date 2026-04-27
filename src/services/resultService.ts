@@ -38,6 +38,12 @@ export const resultService = {
       team2_sets?: number;
       team1_games?: number;
       team2_games?: number;
+      s1_t1?: number | null;
+      s1_t2?: number | null;
+      s2_t1?: number | null;
+      s2_t2?: number | null;
+      s3_t1?: number | null;
+      s3_t2?: number | null;
       match_date?: string | null;
       match_time?: string | null;
       court_name?: string | null;
@@ -102,6 +108,12 @@ export const resultService = {
         team2_sets,
         team1_games,
         team2_games,
+        s1_t1: opts.s1_t1 ?? null,
+        s1_t2: opts.s1_t2 ?? null,
+        s2_t1: opts.s2_t1 ?? null,
+        s2_t2: opts.s2_t2 ?? null,
+        s3_t1: opts.s3_t1 ?? null,
+        s3_t2: opts.s3_t2 ?? null,
         status: 'jugado'
       };
     }
@@ -226,6 +238,12 @@ export const resultService = {
         team2_sets: 0,
         team1_games: 0,
         team2_games: 0,
+        s1_t1: null,
+        s1_t2: null,
+        s2_t1: null,
+        s2_t2: null,
+        s3_t1: null,
+        s3_t2: null,
         comment: null
       })
       .eq('id', matchId);
