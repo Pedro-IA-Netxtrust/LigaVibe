@@ -909,6 +909,27 @@ export default function Fixture() {
                       ].join(' ').toLowerCase();
                       
                       return searchStr.includes(q);
+                    }).sort((a, b) => {
+                      // Sort by date (asc), nulls last
+                      if (a.match_date && !b.match_date) return -1;
+                      if (!a.match_date && b.match_date) return 1;
+                      if (a.match_date && b.match_date) {
+                        if (a.match_date < b.match_date) return -1;
+                        if (a.match_date > b.match_date) return 1;
+                      }
+                      
+                      // Sort by time (asc), nulls last
+                      if (a.match_time && !b.match_time) return -1;
+                      if (!a.match_time && b.match_time) return 1;
+                      if (a.match_time && b.match_time) {
+                        if (a.match_time < b.match_time) return -1;
+                        if (a.match_time > b.match_time) return 1;
+                      }
+
+                      // Sort by court (asc)
+                      const courtA = a.court_name || '';
+                      const courtB = b.court_name || '';
+                      return courtA.localeCompare(courtB);
                     });
 
                     const groups = Array.from(new Set(filtered.map(m => m.group?.group_name || 'Liga Única'))).sort();
@@ -942,11 +963,19 @@ export default function Fixture() {
                                             <span className="text-slate-600">PENDIENTE</span>
                                           )}
                                         </div>
-                                        <div className="flex flex-col gap-1 text-sm font-semibold italic text-white leading-tight">
-                                          <div className={cn(m.winner_id === m.team1_id && "text-emerald-400")}>{m.team1?.team_name}</div>
+                                          <div className="flex flex-col">
+                                            <div className={cn(m.winner_id === m.team1_id && "text-emerald-400")}>{m.team1?.team_name}</div>
+                                            <div className="text-[9px] text-slate-500 font-normal uppercase mt-0.5">
+                                              {m.team1?.player1?.first_name} {m.team1?.player1?.last_name} / {m.team1?.player2?.first_name} {m.team1?.player2?.last_name}
+                                            </div>
+                                          </div>
                                           <div className="text-[10px] text-slate-600 font-bold not-italic my-0.5">VS</div>
-                                          <div className={cn(m.winner_id === m.team2_id && "text-emerald-400")}>{m.team2?.team_name}</div>
-                                        </div>
+                                          <div className="flex flex-col">
+                                            <div className={cn(m.winner_id === m.team2_id && "text-emerald-400")}>{m.team2?.team_name}</div>
+                                            <div className="text-[9px] text-slate-500 font-normal uppercase mt-0.5">
+                                              {m.team2?.player1?.first_name} {m.team2?.player1?.last_name} / {m.team2?.player2?.first_name} {m.team2?.player2?.last_name}
+                                            </div>
+                                          </div>
                                         <div className="flex justify-between items-end mt-2">
                                           <div className="text-[10px] text-slate-400">
                                             {m.match_date ? `${formatDate(m.match_date)} ${m.match_time}` : "Sin fecha"}
@@ -956,9 +985,9 @@ export default function Fixture() {
                                               </div>
                                             )}
                                           </div>
-                                          <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setModalMatch({ ...m })}>
-                                            {m.status === 'jugado' ? 'Editar' : 'Cargar'}
-                                          </Button>
+                                            <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setModalMatch({ ...m })}>
+                                              {m.status === 'jugado' || m.match_date || m.match_time || m.court_name ? 'Editar' : 'Cargar'}
+                                            </Button>
                                         </div>
                                       </div>
                                     ))}
@@ -1115,11 +1144,17 @@ export default function Fixture() {
                               return (
                                 <TableRow key={m.id}>
                                   <TableCell className="text-slate-500 font-mono text-xs">F{m.round}</TableCell>
-                                  <TableCell className={cn("font-bold italic", m.winner_id === m.team1_id ? "text-emerald-400" : "text-white")}>
-                                    {p1}
+                                  <TableCell className={cn("py-4", m.winner_id === m.team1_id ? "text-emerald-400" : "text-white")}>
+                                    <div className="font-bold italic">{p1}</div>
+                                    <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-normal">
+                                      {m.team1?.player1?.first_name} {m.team1?.player1?.last_name} / {m.team1?.player2?.first_name} {m.team1?.player2?.last_name}
+                                    </div>
                                   </TableCell>
-                                  <TableCell className={cn("font-bold italic", m.winner_id === m.team2_id ? "text-emerald-400" : "text-white")}>
-                                    {p2}
+                                  <TableCell className={cn("py-4", m.winner_id === m.team2_id ? "text-emerald-400" : "text-white")}>
+                                    <div className="font-bold italic">{p2}</div>
+                                    <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-normal">
+                                      {m.team2?.player1?.first_name} {m.team2?.player1?.last_name} / {m.team2?.player2?.first_name} {m.team2?.player2?.last_name}
+                                    </div>
                                   </TableCell>
                                   <TableCell className="font-mono text-center font-bold text-indigo-400">
                                     <div>{m.team1_sets}-{m.team2_sets}</div>

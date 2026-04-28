@@ -1,7 +1,7 @@
 
-import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
-import { join } from 'path';
+const { createClient } = require('@supabase/supabase-js');
+const dotenv = require('dotenv');
+const { join } = require('path');
 
 dotenv.config({ path: join(process.cwd(), '.env') });
 

@@ -78,6 +78,27 @@ export default function Schedule() {
       ].join(' ').toLowerCase();
 
       return searchStr.includes(q);
+    }).sort((a, b) => {
+      // Sort by date (asc), nulls last
+      if (a.match_date && !b.match_date) return -1;
+      if (!a.match_date && b.match_date) return 1;
+      if (a.match_date && b.match_date) {
+        if (a.match_date < b.match_date) return -1;
+        if (a.match_date > b.match_date) return 1;
+      }
+      
+      // Sort by time (asc), nulls last
+      if (a.match_time && !b.match_time) return -1;
+      if (!a.match_time && b.match_time) return 1;
+      if (a.match_time && b.match_time) {
+        if (a.match_time < b.match_time) return -1;
+        if (a.match_time > b.match_time) return 1;
+      }
+
+      // Sort by court (asc)
+      const courtA = a.court_name || '';
+      const courtB = b.court_name || '';
+      return courtA.localeCompare(courtB);
     });
   }, [viewMatches, selectedGroupKey, selectedStatus, searchQuery]);
 
@@ -227,7 +248,7 @@ export default function Schedule() {
                       variant="secondary"
                       onClick={() => setModalMatch({ ...m })}
                     >
-                      {m.status === 'jugado' ? 'Editar' : 'Programar'}
+                      {m.status === 'jugado' || m.match_date || m.match_time || m.court_name ? 'Editar' : 'Programar'}
                     </Button>
                   </TableCell>
                 </TableRow>

@@ -8,8 +8,16 @@ export type MatchRow = {
   id: string;
   team1_id: string | null;
   team2_id: string | null;
-  team1?: { team_name?: string };
-  team2?: { team_name?: string };
+  team1?: { 
+    team_name?: string;
+    player1?: { first_name: string; last_name: string };
+    player2?: { first_name: string; last_name: string };
+  };
+  team2?: { 
+    team_name?: string;
+    player1?: { first_name: string; last_name: string };
+    player2?: { first_name: string; last_name: string };
+  };
   status: string;
   match_date?: string | null;
   match_time?: string | null;
@@ -226,10 +234,20 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
               </div>
             )}
 
-            <div className="text-center text-sm text-slate-400">
-              <span className="text-white font-semibold italic">{match.team1?.team_name}</span>
-              <span className="mx-2 text-slate-600">vs</span>
-              <span className="text-white font-semibold italic">{match.team2?.team_name}</span>
+            <div className="text-center space-y-1">
+              <div className="text-sm text-slate-400">
+                <span className="text-white font-bold italic text-base block">{match.team1?.team_name}</span>
+                <span className="text-[10px] uppercase tracking-wider text-slate-500">
+                  {match.team1?.player1?.first_name} {match.team1?.player1?.last_name} / {match.team1?.player2?.first_name} {match.team1?.player2?.last_name}
+                </span>
+              </div>
+              <div className="text-slate-600 font-black text-xs">VS</div>
+              <div className="text-sm text-slate-400">
+                <span className="text-white font-bold italic text-base block">{match.team2?.team_name}</span>
+                <span className="text-[10px] uppercase tracking-wider text-slate-500">
+                  {match.team2?.player1?.first_name} {match.team2?.player1?.last_name} / {match.team2?.player2?.first_name} {match.team2?.player2?.last_name}
+                </span>
+              </div>
             </div>
 
             <div className="space-y-6">
@@ -253,11 +271,17 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
                 <p className="text-xs text-slate-500 mb-4 leading-relaxed">Puedes omitir esto si solo quieres guardar el ganador. Si lo llenas, el sistema calculará todo automáticamente.</p>
 
                 <div className="space-y-4 pt-1">
-                  <div className="flex text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
+                  <div className="flex text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                     <div className="w-14"></div>
-                    <div className="flex-1 text-center truncate px-1">{match.team1?.team_name}</div>
+                    <div className="flex-1 px-1 flex flex-col items-center">
+                      <span className="text-slate-400 truncate w-full text-center">{match.team1?.team_name}</span>
+                      <span className="text-[8px] text-slate-600 truncate w-full text-center">{match.team1?.player1?.last_name} / {match.team1?.player2?.last_name}</span>
+                    </div>
                     <div className="w-4"></div>
-                    <div className="flex-1 text-center truncate px-1">{match.team2?.team_name}</div>
+                    <div className="flex-1 px-1 flex flex-col items-center">
+                      <span className="text-slate-400 truncate w-full text-center">{match.team2?.team_name}</span>
+                      <span className="text-[8px] text-slate-600 truncate w-full text-center">{match.team2?.player1?.last_name} / {match.team2?.player2?.last_name}</span>
+                    </div>
                   </div>
                   
                   <div className="flex gap-2 items-center">
