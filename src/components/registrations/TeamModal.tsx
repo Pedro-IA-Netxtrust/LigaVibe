@@ -148,11 +148,13 @@ export function TeamModal({ isOpen, onClose, onSave, team, category }: TeamModal
     }
   };
 
-  if (!isOpen) return null;
-
-  return (
+  return isOpen ? (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -165,6 +167,7 @@ export function TeamModal({ isOpen, onClose, onSave, team, category }: TeamModal
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          onClick={(event) => event.stopPropagation()}
           className="relative w-full max-w-xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden"
         >
           <div className="p-6 border-b border-slate-800 flex justify-between items-center">
@@ -207,11 +210,15 @@ export function TeamModal({ isOpen, onClose, onSave, team, category }: TeamModal
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-200 focus:border-indigo-500 disabled:opacity-50"
                 >
                   <option value="">{fetchingPlayers ? 'Cargando jugadores...' : 'Seleccionar Jugador...'}</option>
-                    {availablePlayers.map(p => (
+                  {availablePlayers.map(p => {
+                    const genderLabel = p.gender ? formatGenderForUi(p.gender) : 'Otro';
+                    const genderSymbol = genderLabel === 'Femenino' ? '♀' : genderLabel === 'Masculino' ? '♂' : '·';
+                    return (
                       <option key={p.id} value={p.id}>
-                        {p.last_name}, {p.first_name} ({formatGenderForUi(p.gender) === 'Femenino' ? '♀' : '♂'})
+                        {p.last_name}, {p.first_name} ({genderSymbol})
                       </option>
-                    ))}
+                    );
+                  })}
                 </select>
                 {!fetchingPlayers && availablePlayers.length === 0 && (
                   <p className="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
@@ -231,12 +238,15 @@ export function TeamModal({ isOpen, onClose, onSave, team, category }: TeamModal
                   <option value="">{fetchingPlayers ? 'Cargando...' : 'Esperando Pareja...'}</option>
                   {availablePlayers
                     .filter(p => p.id !== formData.player1_id)
-                      .map(p => (
+                    .map(p => {
+                      const genderLabel = p.gender ? formatGenderForUi(p.gender) : 'Otro';
+                      const genderSymbol = genderLabel === 'Femenino' ? '♀' : genderLabel === 'Masculino' ? '♂' : '·';
+                      return (
                         <option key={p.id} value={p.id}>
-                          {p.last_name}, {p.first_name} ({formatGenderForUi(p.gender) === 'Femenino' ? '♀' : '♂'})
+                          {p.last_name}, {p.first_name} ({genderSymbol})
                         </option>
-                      ))
-                  }
+                      );
+                    })}
                 </select>
               </div>
 
@@ -282,7 +292,7 @@ export function TeamModal({ isOpen, onClose, onSave, team, category }: TeamModal
             </div>
           </form>
         </motion.div>
-      </div>
+      </motion.div>
     </AnimatePresence>
-  );
+  ) : null;
 }

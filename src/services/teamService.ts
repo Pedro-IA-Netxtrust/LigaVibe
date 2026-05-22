@@ -29,8 +29,8 @@ export const teamService = {
       .select(
         `
         *,
-        player1:clients!player1_id(id, first_name, last_name, rut, phone),
-        player2:clients!player2_id(id, first_name, last_name, rut, phone)
+        player1:clients!player1_id(id, first_name, last_name, rut, phone, gender),
+        player2:clients!player2_id(id, first_name, last_name, rut, phone, gender)
       `
       )
       .eq('league_category_id', categoryId)
@@ -165,16 +165,6 @@ export const teamService = {
     if (curErr) throw new Error(mapSupabaseError(curErr));
     if (!current) throw new Error('Pareja no encontrada.');
 
-    const { count } = await supabase
-      .from('league_matches')
-      .select('id', { count: 'exact', head: true })
-      .eq('league_category_id', current.league_category_id)
-      .eq('status', 'jugado');
-
-    if (count && count > 0) {
-      throw new Error('No se puede editar la pareja: La categoría ya tiene partidos jugados.');
-    }
-
     const catId = current.league_category_id as string;
     const newP1 = (team.player1_id ?? current.player1_id) as string;
     const newP2 =
@@ -184,10 +174,15 @@ export const teamService = {
           : null
         : (current.player2_id as string | null);
 
+    if (newP1 && newP2 && newP1 === newP2) {
+      throw new Error('Los dos jugadores no pueden ser el mismo.');
+    }
+
     await assertPlayerNotInCategoryTeam(catId, newP1, id);
     if (newP2) await assertPlayerNotInCategoryTeam(catId, newP2, id);
 
     const payload: Record<string, unknown> = { ...team };
+    delete payload.league_category_id;
     if (team.player2_id !== undefined) {
       payload.player2_id = newP2;
     }
