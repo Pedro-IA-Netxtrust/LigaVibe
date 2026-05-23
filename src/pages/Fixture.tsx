@@ -33,7 +33,9 @@ import { computeStandingsFromMatches } from '../utils/standingsCalculator';
 import { phaseService } from '../services/phaseService';
 import { playoffService } from '../services/playoffService';
 import { PhaseCloseModal } from '../components/playoff/PhaseCloseModal';
+import { TieResolveModal, TieTeamRow } from '../components/playoff/TieResolveModal';
 import { BracketView } from '../components/playoff/BracketView';
+import { tiebreakerService } from '../services/tiebreakerService';
 import type { PhaseClosePreview, TieGroup, PlayoffConfig, BracketMatch } from '../types';
 
 type PreviewState = { groups: GroupConfig[]; matches: Partial<any>[] };
@@ -62,6 +64,8 @@ export default function Fixture() {
   const [phaseClosePreview, setPhaseClosePreview] = React.useState<PhaseClosePreview | null>(null);
   const [phaseCloseLoading, setPhaseCloseLoading] = React.useState(false);
   const [phaseQualifiers, setPhaseQualifiers] = React.useState<number>(4);
+  const [activeTie, setActiveTie] = React.useState<TieGroup | null>(null);
+  const [showTieResolveModal, setShowTieResolveModal] = React.useState(false);
 
   // Bracket
   const [bracketMatches, setBracketMatches] = React.useState<BracketMatch[]>([]);
@@ -277,6 +281,40 @@ export default function Fixture() {
     } finally {
       setPhaseCloseLoading(false);
     }
+  };
+
+  const handleResolveTieOpen = (tie: TieGroup) => {
+    setActiveTie(tie);
+    setShowTieResolveModal(true);
+  };
+
+  const tieTeamsForModal = React.useMemo((): TieTeamRow[] => {
+    if (!activeTie || !phaseClosePreview) return [];
+    const idSet = new Set(activeTie.teams);
+    return phaseClosePreview.all_ranked
+      .filter((t) => idSet.has(t.league_team_id))
+      .sort((a, b) => a.rank_in_group - b.rank_in_group)
+      .map((t) => ({
+        league_team_id: t.league_team_id,
+        team_name: t.team_name,
+        points: t.points,
+        sets_diff: t.sets_diff,
+        games_diff: t.games_diff,
+      }));
+  }, [activeTie, phaseClosePreview]);
+
+  const handleSaveTieResolution = async (orderedTeamIds: string[], reason: string) => {
+    if (!selectedCategoryId || !activeTie) return;
+    await tiebreakerService.saveDecision({
+      league_category_id: selectedCategoryId,
+      league_group_id: activeTie.group_id,
+      phase: 1,
+      team_ids_involved: activeTie.teams,
+      ordered_team_ids: orderedTeamIds,
+      reason,
+    });
+    const preview = await phaseService.previewPhaseClose(selectedCategoryId, phaseQualifiers);
+    setPhaseClosePreview(preview);
   };
 
   const handleQualifiersChange = async (n: number) => {
@@ -541,7 +579,18 @@ export default function Fixture() {
         onQualifiersChange={handleQualifiersChange}
         onConfirm={handleConfirmPhaseClose}
         onClose={() => setShowPhaseCloseModal(false)}
-        onResolveTie={(tie: TieGroup) => console.log('Resolve tie:', tie)}
+        onResolveTie={handleResolveTieOpen}
+      />
+
+      <TieResolveModal
+        isOpen={showTieResolveModal}
+        tie={activeTie}
+        teams={tieTeamsForModal}
+        onClose={() => {
+          setShowTieResolveModal(false);
+          setActiveTie(null);
+        }}
+        onSave={handleSaveTieResolution}
       />
 
       {error && (

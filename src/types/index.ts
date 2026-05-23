@@ -161,8 +161,23 @@ export interface ClassifiedTeam {
 
 export interface TieGroup {
   group_id: string | null;
+  group_name?: string | null;
   teams: string[];  // league_team_ids
   rank_position: number;  // which rank position they're all tied at
+  spots_in_group?: number;
+  /** Cuántas de las parejas empatadas clasifican (orden manual). */
+  slots_at_stake?: number;
+}
+
+export interface TiebreakerDecision {
+  id?: string;
+  league_category_id: string;
+  league_group_id: string | null;
+  phase: number;
+  team_ids_involved: string[];
+  ordered_team_ids: string[];
+  reason: string | null;
+  decided_at?: string;
 }
 
 export interface PhaseClosePreview {

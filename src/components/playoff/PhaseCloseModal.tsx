@@ -37,7 +37,8 @@ export function PhaseCloseModal({
 
   const hasPending = (preview?.pending_matches ?? 0) > 0;
   const hasTies = (preview?.ties_at_boundary?.length ?? 0) > 0;
-  const canConfirm = !loading && preview !== null && (!hasPending || forced) && (!hasTies || forced);
+  const canConfirm =
+    !loading && preview !== null && (!hasPending || forced) && (!hasTies || forced);
 
   const classified = preview?.classified ?? [];
   const classifiedIds = new Set(classified.map((t) => t.league_team_id));
@@ -115,14 +116,25 @@ export function PhaseCloseModal({
                     <div className="flex-1">
                       <p className="text-sm font-bold text-rose-300">Empate en zona de clasificación</p>
                       <p className="text-xs text-rose-400/70 mt-1 mb-3">
-                        Equipos con estadísticas idénticas en el borde de clasificación. Resolución requerida.
+                        Parejas con mismos puntos, sets y games en el corte de clasificación. Ordena manualmente
+                        quién clasifica.
                       </p>
-                      {preview.ties_at_boundary.map((tie, i) => (
-                        <Button key={i} size="sm" variant="secondary" onClick={() => onResolveTie(tie)} className="flex items-center gap-2">
-                          <Shuffle size={14} />
-                          Resolver empate — Posición {tie.rank_position}
-                        </Button>
-                      ))}
+                      <div className="flex flex-wrap gap-2">
+                        {preview.ties_at_boundary.map((tie, i) => (
+                          <Button
+                            key={`${tie.group_id ?? 'liga'}-${tie.rank_position}-${i}`}
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => onResolveTie(tie)}
+                            className="flex items-center gap-2"
+                          >
+                            <Shuffle size={14} />
+                            {tie.group_name ? `${tie.group_name} · ` : ''}
+                            Pos. {tie.rank_position}
+                            {tie.slots_at_stake ? ` (${tie.slots_at_stake} plaza${tie.slots_at_stake > 1 ? 's' : ''})` : ''}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

@@ -2,6 +2,12 @@ import { supabase } from '../lib/supabase';
 import { mapSupabaseError } from '../lib/supabaseErrors';
 import { computeStandingsFromMatches } from '../utils/standingsCalculator';
 import { detectTiesAtBoundary, recommendQualifiers } from '../utils/playoffEngine';
+import {
+  sortStandingsWithTiebreakers,
+  filterUnresolvedTies,
+  enrichTieGroup,
+} from '../utils/tiebreaker';
+import { tiebreakerService } from './tiebreakerService';
 import type {
   PhaseClosePreview,
   PhaseClosureRecord,
@@ -33,6 +39,7 @@ export const phaseService = {
 
     if (mErr) throw new Error(mapSupabaseError(mErr));
     const allMatches = matches || [];
+    const tiebreakerDecisions = await tiebreakerService.getForCategory(categoryId, 1);
 
     const total = allMatches.length;
     const played = allMatches.filter(m => m.status === 'jugado').length;
@@ -83,11 +90,13 @@ export const phaseService = {
           group.matches.some(m => m.team1_id === id || m.team2_id === id)
         )
       );
-      const standings = computeStandingsFromMatches(finished, groupNames);
+      const rawStandings = computeStandingsFromMatches(finished, groupNames);
+      const standings = sortStandingsWithTiebreakers(rawStandings, tiebreakerDecisions);
       const spots = qualifiersPerGroup + (idx < extraSpots ? 1 : 0);
 
-      // Detect ties at boundary of this group
-      const groupTies = detectTiesAtBoundary(standings, spots, group.group_id);
+      const groupTies = detectTiesAtBoundary(standings, spots, group.group_id).map((t) =>
+        enrichTieGroup(t, standings, spots, group.group_name)
+      );
       ties_at_boundary.push(...groupTies);
 
       standings.forEach((s, rankIdx) => {
@@ -131,6 +140,7 @@ export const phaseService = {
     });
 
     const teamCount = all_ranked.length;
+    const unresolved_ties = filterUnresolvedTies(ties_at_boundary, tiebreakerDecisions);
 
     return {
       total_matches: total,
@@ -139,7 +149,7 @@ export const phaseService = {
       can_close_normally: pending === 0,
       classified,
       all_ranked,
-      ties_at_boundary,
+      ties_at_boundary: unresolved_ties,
       recommended_qualifiers: recommendQualifiers(teamCount),
     };
   },
