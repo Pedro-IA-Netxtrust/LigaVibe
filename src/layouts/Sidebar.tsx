@@ -12,6 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { NetxtrustBrand } from '../components/ui/NetxtrustBrand';
 
 interface SidebarProps {
   activePage: string;
@@ -55,7 +56,9 @@ export function Sidebar({ activePage }: SidebarProps) {
           {!isCollapsed && (
             <div className="flex flex-col">
               <span className="font-bold text-lg tracking-tight text-white leading-tight">LIGA VIBE 2026</span>
-              <span className="text-[10px] text-indigo-400 font-medium tracking-widest uppercase">by Netxtrust</span>
+              <span className="text-[10px] font-medium tracking-widest uppercase text-slate-400">
+                by <NetxtrustBrand />
+              </span>
             </div>
           )}
         </div>

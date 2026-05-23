@@ -6,6 +6,7 @@ import { LeagueTeam, LeagueCategory, Client } from '../../types';
 import { teamService } from '../../services/teamService';
 import { formatGenderForUi } from '../../utils/gender';
 import { validatePairForCategory } from '../../utils/teamValidation';
+import { validatePartnerChangeInPlay } from '../../utils/partnerChange';
 
 interface TeamModalProps {
   isOpen: boolean;
@@ -13,9 +14,11 @@ interface TeamModalProps {
   onSave: () => void;
   team?: any | null;
   category: LeagueCategory;
+  /** Pareja con partidos asignados: solo cambio de un jugador; puntos siguen en la misma fila de equipo. */
+  partnerSwapOnly?: boolean;
 }
 
-export function TeamModal({ isOpen, onClose, onSave, team, category }: TeamModalProps) {
+export function TeamModal({ isOpen, onClose, onSave, team, category, partnerSwapOnly }: TeamModalProps) {
   const [formData, setFormData] = React.useState({
     player1_id: '',
     player2_id: '',
@@ -124,6 +127,20 @@ export function TeamModal({ isOpen, onClose, onSave, team, category }: TeamModal
       return;
     }
 
+    if (team && partnerSwapOnly) {
+      const swapErr = validatePartnerChangeInPlay(
+        { player1_id: team.player1_id, player2_id: team.player2_id ?? null },
+        {
+          player1_id: formData.player1_id,
+          player2_id: formData.player2_id || null
+        }
+      );
+      if (swapErr) {
+        setError(swapErr);
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
 
@@ -173,7 +190,11 @@ export function TeamModal({ isOpen, onClose, onSave, team, category }: TeamModal
           <div className="p-6 border-b border-slate-800 flex justify-between items-center">
             <div>
               <h3 className="text-xl font-bold text-white">
-                {team ? 'Editar Pareja' : 'Inscribir Pareja'}
+                {team
+                  ? partnerSwapOnly
+                    ? 'Cambiar jugador (pareja en juego)'
+                    : 'Editar Pareja'
+                  : 'Inscribir Pareja'}
               </h3>
               <p className="text-xs text-indigo-400 font-medium uppercase tracking-wider mt-1">
                 Categoría: {category.name}
@@ -192,7 +213,17 @@ export function TeamModal({ isOpen, onClose, onSave, team, category }: TeamModal
               </div>
             )}
 
-            {!formData.player2_id && (
+            {partnerSwapOnly && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-start gap-3 text-emerald-400">
+                <Info className="shrink-0" size={18} />
+                <p className="text-[12px]">
+                  Pareja en juego: reemplaza solo a un jugador. El que se queda mantiene los puntos de la pareja
+                  (partidos y tabla siguen ligados a este nº de inscripción).
+                </p>
+              </div>
+            )}
+
+            {!partnerSwapOnly && !formData.player2_id && (
               <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-start gap-3 text-indigo-400">
                 <Info className="shrink-0" size={18} />
                 <p className="text-[12px]">Pareja guardada como borrador (Incompleta).</p>

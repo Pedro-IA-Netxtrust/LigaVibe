@@ -2,6 +2,28 @@ import { supabase } from '../lib/supabase';
 import { mapSupabaseError } from '../lib/supabaseErrors';
 import { LeagueTeam, Client } from '../types';
 import { getDbGenderValues } from '../utils/gender';
+import { resolveTeamPlayers, validatePartnerChangeInPlay } from '../utils/partnerChange';
+
+async function teamHasMatches(teamId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('league_matches')
+    .select('id', { count: 'exact', head: true })
+    .or(`team1_id.eq.${teamId},team2_id.eq.${teamId}`);
+
+  if (error) throw new Error(mapSupabaseError(error));
+  return (count || 0) > 0;
+}
+
+async function categoryHasPlayedMatches(categoryId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('league_matches')
+    .select('id', { count: 'exact', head: true })
+    .eq('league_category_id', categoryId)
+    .eq('status', 'jugado');
+
+  if (error) throw new Error(mapSupabaseError(error));
+  return (count || 0) > 0;
+}
 
 async function assertPlayerNotInCategoryTeam(
   categoryId: string,
@@ -23,6 +45,26 @@ async function assertPlayerNotInCategoryTeam(
 }
 
 export const teamService = {
+  categoryHasPlayedMatches,
+  teamHasMatches,
+
+  /** IDs de parejas con al menos un partido en el fixture (cualquier estado). */
+  async getTeamIdsWithMatchesInCategory(categoryId: string): Promise<Set<string>> {
+    const { data, error } = await supabase
+      .from('league_matches')
+      .select('team1_id, team2_id')
+      .eq('league_category_id', categoryId);
+
+    if (error) throw new Error(mapSupabaseError(error));
+
+    const ids = new Set<string>();
+    (data || []).forEach((m: { team1_id: string | null; team2_id: string | null }) => {
+      if (m.team1_id) ids.add(m.team1_id);
+      if (m.team2_id) ids.add(m.team2_id);
+    });
+    return ids;
+  },
+
   async getByCategoryId(categoryId: string) {
     const { data, error } = await supabase
       .from('league_teams')
@@ -165,14 +207,29 @@ export const teamService = {
     if (curErr) throw new Error(mapSupabaseError(curErr));
     if (!current) throw new Error('Pareja no encontrada.');
 
+    const inPlay = await teamHasMatches(id);
+    const resolved = resolveTeamPlayers(
+      {
+        player1_id: current.player1_id as string,
+        player2_id: current.player2_id as string | null
+      },
+      team
+    );
+
+    if (inPlay) {
+      const partnerErr = validatePartnerChangeInPlay(
+        {
+          player1_id: current.player1_id as string,
+          player2_id: current.player2_id as string | null
+        },
+        team
+      );
+      if (partnerErr) throw new Error(partnerErr);
+    }
+
     const catId = current.league_category_id as string;
-    const newP1 = (team.player1_id ?? current.player1_id) as string;
-    const newP2 =
-      team.player2_id !== undefined
-        ? team.player2_id && String(team.player2_id).trim() !== ''
-          ? team.player2_id
-          : null
-        : (current.player2_id as string | null);
+    const newP1 = resolved.player1_id;
+    const newP2 = resolved.player2_id;
 
     if (newP1 && newP2 && newP1 === newP2) {
       throw new Error('Los dos jugadores no pueden ser el mismo.');

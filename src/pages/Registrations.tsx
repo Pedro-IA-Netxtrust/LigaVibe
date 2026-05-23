@@ -32,6 +32,29 @@ export default function Registrations() {
   const [selectedTeam, setSelectedTeam] = React.useState<any | null>(null);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState<string>('');
+  const [categoryHasPlayed, setCategoryHasPlayed] = React.useState(false);
+  const [partnerSwapOnly, setPartnerSwapOnly] = React.useState(false);
+  const [teamsInPlay, setTeamsInPlay] = React.useState<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    if (!selectedCategoryId) {
+      setCategoryHasPlayed(false);
+      setTeamsInPlay(new Set());
+      return;
+    }
+    Promise.all([
+      teamService.categoryHasPlayedMatches(selectedCategoryId),
+      teamService.getTeamIdsWithMatchesInCategory(selectedCategoryId)
+    ])
+      .then(([hasPlayed, inPlayIds]) => {
+        setCategoryHasPlayed(hasPlayed);
+        setTeamsInPlay(inPlayIds);
+      })
+      .catch(() => {
+        setCategoryHasPlayed(false);
+        setTeamsInPlay(new Set());
+      });
+  }, [selectedCategoryId, teams]);
 
   // Auto-select first category if none selected
   React.useEffect(() => {
@@ -46,6 +69,7 @@ export default function Registrations() {
   };
 
   const handleEdit = (team: any) => {
+    setPartnerSwapOnly(teamsInPlay.has(team.id));
     setSelectedTeam(team);
     setIsModalOpen(true);
   };
@@ -178,6 +202,13 @@ export default function Registrations() {
         </div>
       </div>
 
+      {categoryHasPlayed && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-sm flex items-center gap-3">
+          <AlertCircle size={18} />
+          Categoría en curso: en parejas ya en juego solo puedes reemplazar un jugador; el que se queda conserva los puntos de la pareja (mismo nº de inscripción).
+        </div>
+      )}
+
       {actionError && (
         <div className="p-4 bg-red-400/10 border border-red-500/20 rounded-xl text-red-500 text-sm flex items-center gap-3">
           <AlertCircle size={18} />
@@ -275,6 +306,11 @@ export default function Registrations() {
                         size="sm"
                         className="text-slate-500 hover:text-indigo-400"
                         onClick={() => handleEdit(team)}
+                        title={
+                          teamsInPlay.has(team.id)
+                            ? 'Cambiar un jugador (pareja en juego; se conservan los puntos)'
+                            : 'Editar pareja'
+                        }
                       >
                         <Edit2 size={16} />
                       </Button>
@@ -298,10 +334,14 @@ export default function Registrations() {
       {selectedCategory && (
         <TeamModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setPartnerSwapOnly(false);
+          }}
           onSave={refresh}
           team={selectedTeam}
           category={selectedCategory}
+          partnerSwapOnly={partnerSwapOnly}
         />
       )}
 

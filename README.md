@@ -1,6 +1,6 @@
 # 🎾 Liga Vibe 2026 - Tournament Management
 
-Sistema profesional para la gestión de torneos de Padel, desarrollado para la **Liga Vibe 2026 by Netxtrust**.
+Sistema profesional para la gestión de torneos de Padel, desarrollado para la **Liga Vibe 2026 by <span style="color:#10b981">Netx</span><span style="color:#ef4444">trust</span>**.
 
 ## 🚀 Despliegue en Vercel
 
