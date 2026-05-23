@@ -131,6 +131,13 @@ export const playoffService = {
       .from('league_matches')
       .insert(placeholderInserts);
     if (phErr) throw new Error(mapSupabaseError(phErr));
+
+    for (const m of insertedRound1 || []) {
+      const orig = round1Inserts.find((r) => r.playoff_slot === m.playoff_slot);
+      if (orig?.status === 'jugado' && orig.winner_id) {
+        await this.advanceWinner(m.id, orig.winner_id);
+      }
+    }
   },
 
   /**

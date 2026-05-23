@@ -13,11 +13,19 @@ interface BracketViewProps {
   onSubmitResult: (matchId: string, payload: any) => Promise<void>;
 }
 
-const ROUND_LABELS: Record<number, string> = {
-  1: 'Ronda Inicial',
-  2: 'Semifinales',
-  3: 'Final',
-};
+function roundLabel(round: number, matches: BracketMatch[]): string {
+  const r1 = matches.filter((m) => m.round === 1);
+  const hasQf = r1.some((m) => m.playoff_slot?.startsWith('QF'));
+  const hasSf = r1.some((m) => m.playoff_slot?.startsWith('SF'));
+  if (round === 1) {
+    if (hasQf) return 'Cuartos de final';
+    if (hasSf) return 'Semifinales';
+    return 'Ronda inicial';
+  }
+  if (round === 2) return hasQf ? 'Semifinales' : 'Gran final';
+  if (round === 3) return 'Gran final';
+  return `Ronda ${round}`;
+}
 
 const SLOT_ORDER = ['QF1', 'QF2', 'QF3', 'QF4', 'SF1', 'SF2', 'F', '3P'];
 
@@ -60,7 +68,7 @@ export function BracketView({ matches, onEditMatch, onResultSaved, onSubmitResul
           <div key={round}>
             <div className="flex items-center gap-3 mb-4">
               <span className="text-xs font-black text-amber-400 uppercase tracking-widest">
-                {ROUND_LABELS[round] ?? `Ronda ${round}`}
+                {roundLabel(round, matches)}
               </span>
               <div className="flex-1 border-t border-slate-800" />
             </div>

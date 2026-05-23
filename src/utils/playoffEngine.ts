@@ -84,8 +84,13 @@ interface Matchup {
  * Olympic seeding: 1 vs N, 2 vs N-1, 3 vs N-2, 4 vs N-3
  * Seeds 1 & 2 are protected: they can only meet in the Final.
  */
+function realTeams(teams: ClassifiedTeam[]): ClassifiedTeam[] {
+  return teams.filter((t) => !t.is_bye);
+}
+
 export function seedOlympic(teams: ClassifiedTeam[]): Matchup[] {
   const n = teams.length;
+  if (n < 2) return [];
   if (n === 2) {
     return [{ slot: 'F', round: 1, team1: teams[0], team2: teams[1], comment: 'Gran Final' }];
   }
@@ -117,7 +122,8 @@ export function seedOlympic(teams: ClassifiedTeam[]): Matchup[] {
  *   QF1: 1A vs 4B | QF2: 2A vs 3B | QF3: 1B vs 4A | QF4: 2B vs 3A
  */
 export function seedWithGroupCrossing(teams: ClassifiedTeam[]): Matchup[] {
-  const groupIds = [...new Set(teams.map(t => t.group_id).filter(Boolean))];
+  const real = realTeams(teams);
+  const groupIds = [...new Set(real.map((t) => t.group_id).filter(Boolean))];
   const n = teams.length;
 
   // If no groups or only one group: fall back to olympic seeding
@@ -125,7 +131,7 @@ export function seedWithGroupCrossing(teams: ClassifiedTeam[]): Matchup[] {
 
   // Sort teams by group, then by rank within group
   const byGroup: Record<string, ClassifiedTeam[]> = {};
-  for (const t of teams) {
+  for (const t of real) {
     const key = t.group_id ?? '__no_group__';
     if (!byGroup[key]) byGroup[key] = [];
     byGroup[key].push(t);
@@ -176,9 +182,10 @@ export function generatePlayoffMatchups(
   teams: ClassifiedTeam[],
   config: Pick<PlayoffConfig, 'qualifiers_count' | 'cross_groups'>
 ): Matchup[] {
-  const padded = assignByes(teams, config.qualifiers_count);
-  if (config.cross_groups && teams.some(t => t.group_id)) {
-    return seedWithGroupCrossing(padded.filter(t => !t.is_bye));
+  const top = teams.slice(0, config.qualifiers_count);
+  const padded = assignByes(top, config.qualifiers_count);
+  if (config.cross_groups && realTeams(padded).some((t) => t.group_id)) {
+    return seedWithGroupCrossing(padded);
   }
   return seedOlympic(padded);
 }
@@ -200,11 +207,9 @@ export function buildSubsequentRounds(
     subsequent.push({ slot: 'SF1', round: 2, comment: 'Semifinal 1', source_slot1: 'QF1', source_slot2: 'QF2' });
     subsequent.push({ slot: 'SF2', round: 2, comment: 'Semifinal 2', source_slot1: 'QF3', source_slot2: 'QF4' });
     subsequent.push({ slot: 'F', round: 3, comment: 'Gran Final', source_slot1: 'SF1', source_slot2: 'SF2' });
-    subsequent.push({ slot: '3P', round: 3, comment: 'Tercer Puesto', source_slot1: 'SF1_LOSER', source_slot2: 'SF2_LOSER' });
   } else if (n === 2) {
     // SF → F
     subsequent.push({ slot: 'F', round: 2, comment: 'Gran Final', source_slot1: 'SF1', source_slot2: 'SF2' });
-    subsequent.push({ slot: '3P', round: 2, comment: 'Tercer Puesto', source_slot1: 'SF1_LOSER', source_slot2: 'SF2_LOSER' });
   }
   // For n=1 (2 teams, direct final), no subsequent rounds needed
   

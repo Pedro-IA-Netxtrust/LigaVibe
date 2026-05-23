@@ -125,14 +125,16 @@ export const resultService = {
 
     if (error) throw new Error(mapSupabaseError(error));
 
-    if (isResult) {
+    if (isResult && (m.phase === 1 || m.phase == null)) {
       await this.recalculateStandings(m.league_category_id);
     }
   },
 
   async recalculateStandings(categoryId: string) {
     const matchesRaw = (await this.getMatchesForCategory(categoryId)) as any[];
-    const finished = matchesRaw.filter((x) => x.status === 'jugado');
+    const finished = matchesRaw.filter(
+      (x) => x.status === 'jugado' && (x.phase === 1 || x.phase == null)
+    );
 
     const { data: teams, error: te } = await supabase
       .from('league_teams')

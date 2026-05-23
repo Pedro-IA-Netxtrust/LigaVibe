@@ -61,6 +61,7 @@ export const phaseService = {
 
     // 4. Classify teams from each group
     const classified: ClassifiedTeam[] = [];
+    const all_ranked: ClassifiedTeam[] = [];
     const ties_at_boundary: ReturnType<typeof detectTiesAtBoundary> = [];
 
     const groupKeys = Object.keys(groupMap).sort((a, b) => {
@@ -73,8 +74,6 @@ export const phaseService = {
     // How many classifiers per group (floor). If not evenly divisible, top groups get +1
     const qualifiersPerGroup = Math.floor(qualifiers / numGroups);
     const extraSpots = qualifiers % numGroups;
-
-    let overallRank = 0;
 
     groupKeys.forEach((key, idx) => {
       const group = groupMap[key];
@@ -92,18 +91,21 @@ export const phaseService = {
       ties_at_boundary.push(...groupTies);
 
       standings.forEach((s, rankIdx) => {
-        overallRank++;
-        classified.push({
+        const row: ClassifiedTeam = {
           league_team_id: s.league_team_id,
           team_name: s.team_name,
           group_id: group.group_id,
           group_name: group.group_name,
           rank_in_group: rankIdx + 1,
-          overall_rank: overallRank,
+          overall_rank: 0,
           points: s.points,
           sets_diff: s.sets_for - s.sets_against,
           games_diff: s.games_for - s.games_against,
-        });
+        };
+        all_ranked.push(row);
+        if (rankIdx < spots) {
+          classified.push(row);
+        }
       });
     });
 
@@ -115,8 +117,20 @@ export const phaseService = {
       return b.games_diff - a.games_diff;
     });
 
-    // Re-assign overall rank after global sort
-    classified.forEach((t, i) => { t.overall_rank = i + 1; });
+    classified.forEach((t, i) => {
+      t.overall_rank = i + 1;
+    });
+    all_ranked.sort((a, b) => {
+      const ga = a.group_name ?? '';
+      const gb = b.group_name ?? '';
+      if (ga !== gb) return ga.localeCompare(gb);
+      return a.rank_in_group - b.rank_in_group;
+    });
+    all_ranked.forEach((t, i) => {
+      t.overall_rank = i + 1;
+    });
+
+    const teamCount = all_ranked.length;
 
     return {
       total_matches: total,
@@ -124,8 +138,9 @@ export const phaseService = {
       pending_matches: pending,
       can_close_normally: pending === 0,
       classified,
+      all_ranked,
       ties_at_boundary,
-      recommended_qualifiers: recommendQualifiers(classified.length),
+      recommended_qualifiers: recommendQualifiers(teamCount),
     };
   },
 

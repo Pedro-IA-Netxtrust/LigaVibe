@@ -170,7 +170,10 @@ export interface PhaseClosePreview {
   played_matches: number;
   pending_matches: number;
   can_close_normally: boolean;
+  /** Parejas que clasifican al playoff (top N por grupo). */
   classified: ClassifiedTeam[];
+  /** Tabla completa de la fase regular (para mostrar no clasificados). */
+  all_ranked: ClassifiedTeam[];
   ties_at_boundary: TieGroup[];  // ties that affect who classifies
   recommended_qualifiers: number;
 }

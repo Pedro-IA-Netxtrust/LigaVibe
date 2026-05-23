@@ -279,16 +279,35 @@ export default function Fixture() {
     }
   };
 
+  const handleQualifiersChange = async (n: number) => {
+    setPhaseQualifiers(n);
+    if (!selectedCategoryId || !showPhaseCloseModal) return;
+    setPhaseCloseLoading(true);
+    try {
+      const preview = await phaseService.previewPhaseClose(selectedCategoryId, n);
+      setPhaseClosePreview(preview);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPhaseCloseLoading(false);
+    }
+  };
+
   const handleGenerateBracket = async () => {
-    if (!selectedCategoryId || !phaseClosePreview) return;
+    if (!selectedCategoryId) return;
     setLoading(true);
     try {
+      const preview =
+        phaseClosePreview ??
+        (await phaseService.previewPhaseClose(selectedCategoryId, phaseQualifiers));
+      setPhaseClosePreview(preview);
+
       const cfg = await playoffService.saveConfig(selectedCategoryId, {
         qualifiers_count: phaseQualifiers as 2 | 4 | 8,
         cross_groups: true,
         protect_seeds: true,
       });
-      const topTeams = (phaseClosePreview?.classified ?? suggestedClassified).slice(0, phaseQualifiers);
+      const topTeams = preview.classified.slice(0, phaseQualifiers);
       await playoffService.generateBracket(selectedCategoryId, topTeams, cfg);
       const bracket = await playoffService.getBracket(selectedCategoryId);
       setBracketMatches(bracket);
@@ -519,7 +538,7 @@ export default function Fixture() {
         preview={phaseClosePreview}
         loading={phaseCloseLoading}
         qualifiers={phaseQualifiers}
-        onQualifiersChange={setPhaseQualifiers}
+        onQualifiersChange={handleQualifiersChange}
         onConfirm={handleConfirmPhaseClose}
         onClose={() => setShowPhaseCloseModal(false)}
         onResolveTie={(tie: TieGroup) => console.log('Resolve tie:', tie)}
@@ -1043,7 +1062,7 @@ export default function Fixture() {
                     </h3>
                     <div className="flex gap-2">
                       {status?.state === 'closed' && bracketMatches.length === 0 && (
-                        <Button onClick={handleGenerateBracket} disabled={!phaseClosePreview && bracketMatches.length === 0}>
+                        <Button onClick={handleGenerateBracket} disabled={bracketMatches.length > 0}>
                           Generar Cuadro
                         </Button>
                       )}
@@ -1062,10 +1081,10 @@ export default function Fixture() {
                     </div>
                   )}
 
-                  {status?.state === 'closed' && bracketMatches.length === 0 && !phaseClosePreview && (
+                  {status?.state === 'closed' && bracketMatches.length === 0 && (
                     <div className="flex items-center gap-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl text-slate-300 text-sm">
                       <AlertCircle size={16} className="text-amber-400" />
-                      El fixture está cerrado. Haz clic en <strong>"Generar Cuadro"</strong> o vuelve al botón <strong>"Cerrar fixture"</strong> para seleccionar los clasificados.
+                      El fixture está cerrado. Usa <strong>Generar Cuadro</strong> para armar el playoff con los clasificados de la fase regular.
                     </div>
                   )}
 

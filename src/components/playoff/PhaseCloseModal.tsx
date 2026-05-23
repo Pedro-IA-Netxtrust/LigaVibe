@@ -39,8 +39,10 @@ export function PhaseCloseModal({
   const hasTies = (preview?.ties_at_boundary?.length ?? 0) > 0;
   const canConfirm = !loading && preview !== null && (!hasPending || forced) && (!hasTies || forced);
 
-  const classified = preview?.classified.slice(0, qualifiers) ?? [];
-  const notClassified = preview?.classified.slice(qualifiers) ?? [];
+  const classified = preview?.classified ?? [];
+  const classifiedIds = new Set(classified.map((t) => t.league_team_id));
+  const notClassified =
+    preview?.all_ranked?.filter((t) => !classifiedIds.has(t.league_team_id)) ?? [];
 
   return (
     <AnimatePresence>
@@ -149,7 +151,8 @@ export function PhaseCloseModal({
                   </div>
                   {qualifiers === preview.recommended_qualifiers && (
                     <p className="text-[11px] text-emerald-400 mt-2 flex items-center gap-1">
-                      <CheckCircle2 size={12} /> Formato recomendado para {preview.classified.length} equipos
+                      <CheckCircle2 size={12} /> Formato recomendado para{' '}
+                      {preview.all_ranked?.length ?? preview.classified.length} parejas en fase regular
                     </p>
                   )}
                 </div>
