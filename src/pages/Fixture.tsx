@@ -429,8 +429,12 @@ export default function Fixture() {
               const score = (m.team1_sets !== null && m.team2_sets !== null)
                 ? `${m.team1_sets}-${m.team2_sets}`
                 : 'Jugado';
-              const winner = m.winner_id === m.team1_id ? p1 : p2;
-              text += `  ✅ ${p1} ${score} ${p2}  ← Ganó *${winner}*\n`;
+              if (m.winner_id) {
+                const winner = m.winner_id === m.team1_id ? p1 : p2;
+                text += `  ✅ ${p1} ${score} ${p2}  ← Ganó *${winner}*\n`;
+              } else {
+                text += `  ✅ ${p1} ${score} ${p2}  ← *Jugado sin puntos*\n`;
+              }
             } else {
               text += `  ⏳ ${p1}  vs  ${p2}\n`;
             }
@@ -1049,7 +1053,11 @@ export default function Fixture() {
                                             {m.match_date ? `${formatDate(m.match_date)} ${m.match_time}` : "Sin fecha"}
                                             {m.status === 'jugado' && (
                                               <div className="text-indigo-400 font-bold mt-0.5">
-                                                Resultado: {m.s1_t1}-{m.s1_t2} {m.s2_t1 ? `, ${m.s2_t1}-${m.s2_t2}` : ''} {m.s3_t1 ? `, ${m.s3_t1}-${m.s3_t2}` : ''}
+                                                {m.winner_id ? (
+                                                  `Resultado: ${m.s1_t1}-${m.s1_t2}${m.s2_t1 !== null && m.s2_t1 !== undefined ? `, ${m.s2_t1}-${m.s2_t2}` : ''}${m.s3_t1 !== null && m.s3_t1 !== undefined ? `, ${m.s3_t1}-${m.s3_t2}` : ''}`
+                                                ) : (
+                                                  'Sin puntos (0-0)'
+                                                )}
                                               </div>
                                             )}
                                           </div>
@@ -1204,10 +1212,10 @@ export default function Fixture() {
                           {filtered
                             .filter(m => (m.group?.group_name || 'Liga Única') === gName)
                             .map((m) => {
-                              const p1 = m.team1?.team_name || '?';
-                              const p2 = m.team2?.team_name || '?';
-                              const winner = m.winner_id === m.team1_id ? p1 : p2;
-                              const hasExtra = m.match_date || m.match_time || m.court_name || m.comment;
+                               const p1 = m.team1?.team_name || '?';
+                               const p2 = m.team2?.team_name || '?';
+                               const winner = m.winner_id === m.team1_id ? p1 : m.winner_id === m.team2_id ? p2 : '?';
+                               const hasExtra = m.match_date || m.match_time || m.court_name || m.comment;
                               
                               return (
                                 <TableRow key={m.id}>
@@ -1225,19 +1233,31 @@ export default function Fixture() {
                                     </div>
                                   </TableCell>
                                   <TableCell className="font-mono text-center font-bold text-indigo-400">
-                                    <div>{m.team1_sets}-{m.team2_sets}</div>
-                                    <div className="text-[10px] text-slate-500 font-normal">
-                                      ({m.s1_t1}-{m.s1_t2}
-                                      {m.s2_t1 !== null && m.s2_t1 !== undefined ? `, ${m.s2_t1}-${m.s2_t2}` : ''}
-                                      {m.s3_t1 !== null && m.s3_t1 !== undefined ? `, ${m.s3_t1}-${m.s3_t2}` : ''})
-                                    </div>
+                                    {m.winner_id ? (
+                                      <>
+                                        <div>{m.team1_sets}-{m.team2_sets}</div>
+                                        <div className="text-[10px] text-slate-500 font-normal">
+                                          ({m.s1_t1}-{m.s1_t2}
+                                          {m.s2_t1 !== null && m.s2_t1 !== undefined ? `, ${m.s2_t1}-${m.s2_t2}` : ''}
+                                          {m.s3_t1 !== null && m.s3_t1 !== undefined ? `, ${m.s3_t1}-${m.s3_t2}` : ''})
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="text-slate-500 font-normal">0-0</div>
+                                    )}
                                   </TableCell>
                                   <TableCell>
-                                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-bold uppercase">
-                                      Ganó {winner}
-                                    </span>
+                                    {m.winner_id ? (
+                                      <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-bold uppercase">
+                                        Ganó {winner}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] bg-slate-500/10 text-slate-400 px-2 py-0.5 rounded border border-slate-500/20 font-bold uppercase">
+                                        Jugado sin puntos
+                                      </span>
+                                    )}
                                   </TableCell>
-                                  {filtered.some(f => f.match_date || f.match_time || f.court_name || f.comment) && (
+                                  {hasExtra && (
                                     <TableCell>
                                       <div className="text-[10px] flex flex-col gap-0.5">
                                         {(m.match_date || m.match_time) && (

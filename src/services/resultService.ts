@@ -32,7 +32,7 @@ export const resultService = {
   async updateMatchResult(
     matchId: string,
     opts: {
-      mode: 'quick' | 'full' | 'schedule';
+      mode: 'quick' | 'full' | 'schedule' | 'no_points';
       winnerTeamId?: string | null;
       team1_sets?: number;
       team2_sets?: number;
@@ -59,7 +59,7 @@ export const resultService = {
     if (fe || !m) throw new Error(mapSupabaseError(fe || new Error('Partido no encontrado.')));
     await this.assertCategoryAllowsResults(m.league_category_id);
 
-    const isResult = opts.winnerTeamId && opts.mode !== 'schedule';
+    const isResult = (opts.winnerTeamId && opts.mode !== 'schedule') || opts.mode === 'no_points';
 
     if (opts.match_date && opts.match_time && opts.court_name) {
       const { data: conflicts, error: conflictErr } = await supabase
@@ -94,6 +94,11 @@ export const resultService = {
         team2_sets = opts.team2_sets ?? 0;
         team1_games = opts.team1_games ?? 0;
         team2_games = opts.team2_games ?? 0;
+      } else if (opts.mode === 'no_points') {
+        team1_sets = 0;
+        team2_sets = 0;
+        team1_games = 0;
+        team2_games = 0;
       } else if (opts.winnerTeamId === m.team2_id) {
         team1_sets = 0;
         team2_sets = 2;
@@ -103,17 +108,17 @@ export const resultService = {
 
       updatePayload = {
         ...updatePayload,
-        winner_id: opts.winnerTeamId,
+        winner_id: opts.mode === 'no_points' ? null : opts.winnerTeamId,
         team1_sets,
         team2_sets,
         team1_games,
         team2_games,
-        s1_t1: opts.s1_t1 ?? null,
-        s1_t2: opts.s1_t2 ?? null,
-        s2_t1: opts.s2_t1 ?? null,
-        s2_t2: opts.s2_t2 ?? null,
-        s3_t1: opts.s3_t1 ?? null,
-        s3_t2: opts.s3_t2 ?? null,
+        s1_t1: opts.mode === 'no_points' ? null : (opts.s1_t1 ?? null),
+        s1_t2: opts.mode === 'no_points' ? null : (opts.s1_t2 ?? null),
+        s2_t1: opts.mode === 'no_points' ? null : (opts.s2_t1 ?? null),
+        s2_t2: opts.mode === 'no_points' ? null : (opts.s2_t2 ?? null),
+        s3_t1: opts.mode === 'no_points' ? null : (opts.s3_t1 ?? null),
+        s3_t2: opts.mode === 'no_points' ? null : (opts.s3_t2 ?? null),
         status: 'jugado'
       };
     }

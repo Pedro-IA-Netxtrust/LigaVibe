@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, AlertCircle, Trash2, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/Base';
 import { resultService } from '../../services/resultService';
+import { cn } from '../../lib/utils';
 
 export type MatchRow = {
   id: string;
@@ -40,7 +41,7 @@ interface MatchResultModalProps {
   onSubmit: (
     matchId: string,
     payload: {
-      mode: 'quick' | 'full' | 'schedule';
+      mode: 'quick' | 'full' | 'schedule' | 'no_points';
       winnerTeamId?: string | null;
       team1_sets?: number;
       team2_sets?: number;
@@ -89,7 +90,11 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
 
   React.useEffect(() => {
     if (!match || !isOpen) return;
-    setWinnerId(match.winner_id || '');
+    if (match.status === 'jugado' && !match.winner_id) {
+      setWinnerId('no_points');
+    } else {
+      setWinnerId(match.winner_id || '');
+    }
     setS1t1(match.s1_t1 !== null && match.s1_t1 !== undefined ? Number(match.s1_t1) : '');
     setS1t2(match.s1_t2 !== null && match.s1_t2 !== undefined ? Number(match.s1_t2) : '');
     setS2t1(match.s2_t1 !== null && match.s2_t1 !== undefined ? Number(match.s2_t1) : '');
@@ -110,14 +115,17 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
     setError(null);
 
     const isSchedulingOnly = !winnerId;
+    const isNoPoints = winnerId === 'no_points';
     
     let team1_sets = 0;
     let team2_sets = 0;
     let team1_games = 0;
     let team2_games = 0;
-    let finalMode: 'quick' | 'full' | 'schedule' = isSchedulingOnly ? 'schedule' : 'quick';
+    let finalMode: 'quick' | 'full' | 'schedule' | 'no_points' = isSchedulingOnly 
+      ? 'schedule' 
+      : (isNoPoints ? 'no_points' : 'quick');
 
-    const hasSetInputs = s1t1 !== '' || s1t2 !== '' || s2t1 !== '' || s2t2 !== '';
+    const hasSetInputs = !isNoPoints && (s1t1 !== '' || s1t2 !== '' || s2t1 !== '' || s2t2 !== '');
     if (hasSetInputs) {
       const v_s1t1 = Number(s1t1) || 0;
       const v_s1t2 = Number(s1t2) || 0;
@@ -147,7 +155,7 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
       team1_games = v_s1t1 + v_s2t1 + v_s3t1;
       team2_games = v_s1t2 + v_s2t2 + v_s3t2;
       finalMode = 'full';
-    } else {
+    } else if (!isNoPoints) {
        if (winnerId === match.team1_id) {
           team1_sets = 2;
           team2_sets = 0;
@@ -161,17 +169,17 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
     try {
       await onSubmit(match.id, {
         mode: finalMode,
-        winnerTeamId: winnerId,
+        winnerTeamId: isNoPoints ? null : winnerId,
         team1_sets,
         team2_sets,
         team1_games,
         team2_games,
-        s1_t1: s1t1 !== '' ? Number(s1t1) : null,
-        s1_t2: s1t2 !== '' ? Number(s1t2) : null,
-        s2_t1: s2t1 !== '' ? Number(s2t1) : null,
-        s2_t2: s2t2 !== '' ? Number(s2t2) : null,
-        s3_t1: s3t1 !== '' ? Number(s3t1) : null,
-        s3_t2: s3t2 !== '' ? Number(s3t2) : null,
+        s1_t1: isNoPoints ? null : (s1t1 !== '' ? Number(s1t1) : null),
+        s1_t2: isNoPoints ? null : (s1t2 !== '' ? Number(s1t2) : null),
+        s2_t1: isNoPoints ? null : (s2t1 !== '' ? Number(s2t1) : null),
+        s2_t2: isNoPoints ? null : (s2t2 !== '' ? Number(s2t2) : null),
+        s3_t1: isNoPoints ? null : (s3t1 !== '' ? Number(s3t1) : null),
+        s3_t2: isNoPoints ? null : (s3t2 !== '' ? Number(s3t2) : null),
         match_date: date || null,
         match_time: time || null,
         court_name: court || null,
@@ -261,13 +269,17 @@ export function MatchResultModal({ isOpen, match, onClose, onSaved, onSubmit }: 
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 font-semibold focus:ring-2 focus:ring-indigo-500 transition-all"
                 >
                   <option value="">Solo programar (sin ganador)</option>
+                  <option value="no_points">Marcar como jugado sin puntos (ambos 0)</option>
                   {match.team1_id && <option value={match.team1_id}>{match.team1?.team_name || 'Pareja 1'}</option>}
                   {match.team2_id && <option value={match.team2_id}>{match.team2?.team_name || 'Pareja 2'}</option>}
                 </select>
               </div>
 
-              <div className="bg-slate-900 rounded-xl border border-slate-800 p-4">
-                <label className="text-sm font-medium text-slate-300 block mb-1">Detalle por Sets (Opcional)</label>
+              <div className={cn("bg-slate-900 rounded-xl border border-slate-800 p-4 transition-all duration-200", winnerId === 'no_points' && "opacity-40 pointer-events-none")}>
+                <label className="text-sm font-medium text-slate-300 block mb-1">
+                  Detalle por Sets (Opcional)
+                  {winnerId === 'no_points' && <span className="text-amber-500 ml-2 font-normal text-xs">(Deshabilitado para jugado sin puntos)</span>}
+                </label>
                 <p className="text-xs text-slate-500 mb-4 leading-relaxed">Puedes omitir esto si solo quieres guardar el ganador. Si lo llenas, el sistema calculará todo automáticamente.</p>
 
                 <div className="space-y-4 pt-1">
