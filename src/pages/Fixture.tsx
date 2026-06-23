@@ -32,11 +32,22 @@ import { MatchResultModal, MatchRow } from '../components/results/MatchResultMod
 import { computeStandingsFromMatches } from '../utils/standingsCalculator';
 import { phaseService } from '../services/phaseService';
 import { playoffService } from '../services/playoffService';
+import { phase2Service } from '../services/phase2Service';
 import { PhaseCloseModal } from '../components/playoff/PhaseCloseModal';
 import { TieResolveModal, TieTeamRow } from '../components/playoff/TieResolveModal';
 import { BracketView } from '../components/playoff/BracketView';
 import { tiebreakerService } from '../services/tiebreakerService';
-import type { PhaseClosePreview, TieGroup, PlayoffConfig, BracketMatch } from '../types';
+import type {
+  PhaseClosePreview,
+  TieGroup,
+  PlayoffConfig,
+  BracketMatch,
+  Phase2Config,
+  Phase2Participant,
+  Phase2GroupStanding,
+  Phase2Classification,
+  Phase2Mode
+} from '../types';
 
 type PreviewState = { groups: GroupConfig[]; matches: Partial<any>[] };
 
@@ -72,7 +83,15 @@ export default function Fixture() {
   const [bracketLoading, setBracketLoading] = React.useState(false);
   const [playoffConfig, setPlayoffConfig] = React.useState<PlayoffConfig | null>(null);
 
-  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  // Phase 2 (group league mode)
+  const [phase2Config, setPhase2Config] = React.useState<Phase2Config | null>(null);
+  const [phase2Participants, setPhase2Participants] = React.useState<Phase2Participant[]>([]);
+  const [phase2Standings, setPhase2Standings] = React.useState<Phase2GroupStanding[]>([]);
+  const [phase2Classification, setPhase2Classification] = React.useState<Phase2Classification | null>(null);
+  const [phase2Loading, setPhase2Loading] = React.useState(false);
+  const [phase2AddTeamId, setPhase2AddTeamId] = React.useState<string>('');
+
+  const selectedCategory = categories.find((c: any) => c.id === selectedCategoryId);
   const n = status?.teamCount ?? 0;
 
   React.useEffect(() => {
@@ -328,6 +347,108 @@ export default function Fixture() {
       setError(err.message);
     } finally {
       setPhaseCloseLoading(false);
+    }
+  };
+
+  const loadPhase2Data = React.useCallback(async () => {
+    if (!selectedCategoryId) return;
+    setPhase2Loading(true);
+    try {
+      const [cfg, participants, standings, classification] = await Promise.all([
+        phase2Service.getConfig(selectedCategoryId),
+        phase2Service.getParticipants(selectedCategoryId),
+        phase2Service.previewPhase2Standings(selectedCategoryId),
+        phase2Service.getPhase2Classification(selectedCategoryId),
+      ]);
+      setPhase2Config(cfg);
+      setPhase2Participants(participants);
+      setPhase2Standings(standings);
+      setPhase2Classification(classification);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPhase2Loading(false);
+    }
+  }, [selectedCategoryId]);
+
+  React.useEffect(() => {
+    if (!selectedCategoryId) return;
+    if (activeTab !== 'playoffs') return;
+    loadPhase2Data();
+  }, [selectedCategoryId, activeTab, loadPhase2Data]);
+
+  const handlePhase2ModeChange = async (mode: Phase2Mode) => {
+    if (!selectedCategoryId) return;
+    setPhase2Loading(true);
+    setError(null);
+    try {
+      const next = await phase2Service.saveConfig(selectedCategoryId, { mode });
+      setPhase2Config(next);
+      await loadPhase2Data();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPhase2Loading(false);
+    }
+  };
+
+  const handlePhase2SeedFromPhase1 = async () => {
+    if (!selectedCategoryId) return;
+    setPhase2Loading(true);
+    setError(null);
+    try {
+      const preview = await phaseService.previewPhaseClose(selectedCategoryId, phaseQualifiers);
+      const ids = preview.classified.slice(0, phaseQualifiers).map((t) => t.league_team_id);
+      await phase2Service.seedParticipantsFromPhase1(selectedCategoryId, ids, null);
+      await loadPhase2Data();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPhase2Loading(false);
+    }
+  };
+
+  const handlePhase2AddParticipant = async () => {
+    if (!selectedCategoryId || !phase2AddTeamId) return;
+    setPhase2Loading(true);
+    setError(null);
+    try {
+      await phase2Service.addParticipant(selectedCategoryId, phase2AddTeamId);
+      setPhase2AddTeamId('');
+      await loadPhase2Data();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPhase2Loading(false);
+    }
+  };
+
+  const handlePhase2RemoveParticipant = async (teamId: string) => {
+    if (!selectedCategoryId) return;
+    setPhase2Loading(true);
+    setError(null);
+    try {
+      await phase2Service.removeParticipant(selectedCategoryId, teamId);
+      await loadPhase2Data();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPhase2Loading(false);
+    }
+  };
+
+  const handlePhase2GenerateGroups = async () => {
+    if (!selectedCategoryId) return;
+    setPhase2Loading(true);
+    setError(null);
+    try {
+      await phase2Service.generateGroupMatchesPhase2(selectedCategoryId, { isDoubleRound: false });
+      await loadStatusAndData();
+      await loadPhase2Data();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPhase2Loading(false);
     }
   };
 
@@ -1144,6 +1265,155 @@ export default function Fixture() {
                       El fixture está cerrado. Usa <strong>Generar Cuadro</strong> para armar el playoff con los clasificados de la fase regular.
                     </div>
                   )}
+
+                  <Card
+                    title="Administrador Fase 2 (Grupos)"
+                    subtitle="Configura modo, participantes, grupos y clasificación de segunda fase"
+                  >
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-xs text-slate-400 uppercase">Modo Fase 2</label>
+                          <select
+                            className="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200"
+                            value={phase2Config?.mode ?? 'elimination'}
+                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                              handlePhase2ModeChange(e.target.value as Phase2Mode)
+                            }
+                            disabled={phase2Loading}
+                          >
+                            <option value="elimination">Eliminación directa</option>
+                            <option value="group_league">Grupos (liga)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 uppercase">Agregar pareja a fase 2</label>
+                          <div className="mt-1 flex gap-2">
+                            <select
+                              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200"
+                              value={phase2AddTeamId}
+                              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPhase2AddTeamId(e.target.value)}
+                              disabled={phase2Loading}
+                            >
+                              <option value="">Selecciona una pareja…</option>
+                              {previewTeams
+                                .filter((t: LeagueTeam) => !phase2Participants.some((p) => p.league_team_id === t.id))
+                                .map((t: LeagueTeam) => (
+                                  <option key={t.id} value={t.id}>{t.team_name}</option>
+                                ))}
+                            </select>
+                            <Button onClick={handlePhase2AddParticipant} disabled={phase2Loading || !phase2AddTeamId}>
+                              Agregar
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <Button variant="secondary" onClick={handlePhase2SeedFromPhase1} disabled={phase2Loading || !selectedCategoryId}>
+                            Sembrar desde cierre F1
+                          </Button>
+                          <Button variant="secondary" onClick={loadPhase2Data} disabled={phase2Loading}>
+                            Refrescar
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          onClick={handlePhase2GenerateGroups}
+                          disabled={phase2Loading || (phase2Config?.mode ?? 'elimination') !== 'group_league'}
+                        >
+                          Generar Fase 2 por Grupos
+                        </Button>
+                        {(phase2Config?.mode ?? 'elimination') !== 'group_league' && (
+                          <span className="text-xs text-amber-400 self-center">
+                            Cambia a modo “Grupos (liga)” para habilitar esta acción.
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-bold text-white mb-2">Participantes Fase 2</h4>
+                        {phase2Participants.length === 0 ? (
+                          <div className="text-sm text-slate-500 italic">Sin participantes aún.</div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {phase2Participants.map((p) => (
+                              <div key={p.id} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="text-sm text-white font-semibold truncate">{p.team_name || p.league_team_id}</div>
+                                  <div className="text-[10px] text-slate-500">Seed: {p.seed ?? '—'}</div>
+                                </div>
+                                <Button size="sm" variant="danger" onClick={() => handlePhase2RemoveParticipant(p.league_team_id)} disabled={phase2Loading}>
+                                  Quitar
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <Card title="Tabla Fase 2 (por grupos)">
+                          {phase2Standings.length === 0 ? (
+                            <p className="text-sm text-slate-500 italic">No hay standings de fase 2 todavía.</p>
+                          ) : (
+                            <Table headers={['Grupo', '#', 'Pareja', 'Pts', 'PJ', 'PG', 'PP', 'DS', 'DG']}>
+                              {phase2Standings.map((s) => (
+                                <TableRow key={`${s.group_id ?? 'liga'}-${s.league_team_id}`}>
+                                  <TableCell>{s.group_name || 'Liga'}</TableCell>
+                                  <TableCell>#{s.rank_in_group}</TableCell>
+                                  <TableCell className="font-semibold">{s.team_name}</TableCell>
+                                  <TableCell className="text-indigo-400 font-bold">{s.points}</TableCell>
+                                  <TableCell>{s.played}</TableCell>
+                                  <TableCell>{s.won}</TableCell>
+                                  <TableCell>{s.lost}</TableCell>
+                                  <TableCell>{s.sets_diff}</TableCell>
+                                  <TableCell>{s.games_diff}</TableCell>
+                                </TableRow>
+                              ))}
+                            </Table>
+                          )}
+                        </Card>
+
+                        <Card title="Clasificación Fase 2">
+                          {!phase2Classification ? (
+                            <p className="text-sm text-slate-500 italic">Sin datos de clasificación.</p>
+                          ) : (
+                            <div className="space-y-4">
+                              <div>
+                                <h5 className="text-xs uppercase text-emerald-400 font-bold mb-2">Clasificados</h5>
+                                {phase2Classification.classified.length === 0 ? (
+                                  <p className="text-sm text-slate-500 italic">Aún no hay clasificados.</p>
+                                ) : (
+                                  <ul className="space-y-1">
+                                    {phase2Classification.classified.map((m) => (
+                                      <li key={m.league_team_id} className="text-sm text-emerald-300">
+                                        {m.team_name} · {m.group_name || 'Liga'} · {m.points} pts
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                              <div>
+                                <h5 className="text-xs uppercase text-slate-400 font-bold mb-2">Lista de espera</h5>
+                                {phase2Classification.waiting_list.length === 0 ? (
+                                  <p className="text-sm text-slate-500 italic">Sin lista de espera.</p>
+                                ) : (
+                                  <ul className="space-y-1">
+                                    {phase2Classification.waiting_list.map((m) => (
+                                      <li key={m.league_team_id} className="text-sm text-slate-300">
+                                        {m.team_name} · {m.group_name || 'Liga'} · {m.points} pts
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </Card>
+                      </div>
+                    </div>
+                  </Card>
 
                   <BracketView
                     matches={bracketMatches}

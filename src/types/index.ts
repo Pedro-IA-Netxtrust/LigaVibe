@@ -193,6 +193,70 @@ export interface PhaseClosePreview {
   recommended_qualifiers: number;
 }
 
+export type Phase2Mode = 'elimination' | 'group_league';
+
+export interface Phase2Config {
+  id?: string;
+  league_category_id: string;
+  phase: 2;
+  mode: Phase2Mode;
+  groups_count: number;
+  teams_per_group: number;
+  qualifiers_per_group: number;
+  best_thirds_count: number;
+  cross_groups: boolean;
+  protect_seeds: boolean;
+  points_win: number;
+  points_loss: number;
+  points_walkover: number;
+  points_no_show: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Phase2Participant {
+  id: string;
+  league_category_id: string;
+  phase: 2;
+  league_team_id: string;
+  source_phase_closure_id: string | null;
+  seed: number | null;
+  manually_added: boolean;
+  manually_removed: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  team_name?: string;
+}
+
+export interface Phase2Rule {
+  qualifiers_per_group: number;
+  best_thirds_count: number;
+}
+
+export interface Phase2GroupStanding {
+  league_team_id: string;
+  team_name: string;
+  group_id: string | null;
+  group_name: string | null;
+  rank_in_group: number;
+  points: number;
+  played: number;
+  won: number;
+  lost: number;
+  sets_for: number;
+  sets_against: number;
+  games_for: number;
+  games_against: number;
+  sets_diff: number;
+  games_diff: number;
+}
+
+export interface Phase2Classification {
+  classified: Phase2GroupStanding[];
+  waiting_list: Phase2GroupStanding[];
+}
+
 export interface BracketMatch {
   id: string;
   playoff_slot: string;

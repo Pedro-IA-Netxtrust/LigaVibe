@@ -131,12 +131,25 @@ export function seedWithGroupCrossing(teams: ClassifiedTeam[]): Matchup[] {
 
   // Sort teams by group, then by rank within group
   const byGroup: Record<string, ClassifiedTeam[]> = {};
+  groupIds.forEach((id) => {
+    byGroup[id] = [];
+  });
   for (const t of real) {
-    const key = t.group_id ?? '__no_group__';
-    if (!byGroup[key]) byGroup[key] = [];
-    byGroup[key].push(t);
+    if (t.group_id) {
+      byGroup[t.group_id].push(t);
+    }
   }
   Object.values(byGroup).forEach(g => g.sort((a, b) => a.rank_in_group - b.rank_in_group));
+
+  // Distribute BYE teams to fill groups to n/2
+  const byes = teams.filter((t) => t.is_bye);
+  let byeIdx = 0;
+  const targetGroupSize = Math.floor(n / 2);
+  groupIds.forEach((id) => {
+    while (byGroup[id].length < targetGroupSize && byeIdx < byes.length) {
+      byGroup[id].push(byes[byeIdx++]);
+    }
+  });
 
   // 2 groups, 4 classifiers
   if (groupIds.length === 2 && n === 4) {

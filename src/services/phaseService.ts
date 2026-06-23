@@ -207,25 +207,31 @@ export const phaseService = {
 
     if (sErr) throw new Error(mapSupabaseError(sErr));
 
+    const standingsMap = new Map<string, any>();
+    (currentStandings || []).forEach(s => standingsMap.set(s.league_team_id, s));
+
     // 3. Insert snapshots
     const classifiedIds = new Set(preview.classified.slice(0, qualifiers).map(t => t.league_team_id));
-    const snapshotRows = (currentStandings || []).map((s: any, idx: number) => ({
-      league_phase_closure_id: closureId,
-      league_category_id: categoryId,
-      league_group_id: s.league_group_id,
-      league_team_id: s.league_team_id,
-      phase: 1,
-      final_rank: idx + 1,
-      classified: classifiedIds.has(s.league_team_id),
-      points: s.points,
-      played: s.played,
-      won: s.won,
-      lost: s.lost,
-      sets_for: s.sets_for,
-      sets_against: s.sets_against,
-      games_for: s.games_for,
-      games_against: s.games_against,
-    }));
+    const snapshotRows = preview.all_ranked.map((t) => {
+      const s = standingsMap.get(t.league_team_id);
+      return {
+        league_phase_closure_id: closureId,
+        league_category_id: categoryId,
+        league_group_id: t.group_id,
+        league_team_id: t.league_team_id,
+        phase: 1,
+        final_rank: t.overall_rank,
+        classified: classifiedIds.has(t.league_team_id),
+        points: s ? s.points : t.points,
+        played: s ? s.played : 0,
+        won: s ? s.won : 0,
+        lost: s ? s.lost : 0,
+        sets_for: s ? s.sets_for : 0,
+        sets_against: s ? s.sets_against : 0,
+        games_for: s ? s.games_for : 0,
+        games_against: s ? s.games_against : 0,
+      };
+    });
 
     if (snapshotRows.length > 0) {
       const { error: snErr } = await supabase
