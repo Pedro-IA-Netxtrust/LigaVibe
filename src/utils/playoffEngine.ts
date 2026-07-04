@@ -1,57 +1,46 @@
 import { ComputedStanding } from './standingsCalculator';
 import { ClassifiedTeam, TieGroup, PlayoffConfig } from '../types';
 
+export type BracketSize = 2 | 4 | 8 | 16;
+
 // ---- SEEDING & CLASSIFICATION ----
 
-/**
- * Detects ties that fall exactly at the qualification boundary.
- * e.g. if qualifiers=4 and positions 4 and 5 have identical stats → tie at boundary.
- */
 export function detectTiesAtBoundary(
   standings: ComputedStanding[],
   qualifiers: number,
   groupId: string | null
 ): TieGroup[] {
   const ties: TieGroup[] = [];
-  
-  // Check tie at the last qualifying spot vs first non-qualifying
   const lastQualifier = standings[qualifiers - 1];
   const firstOut = standings[qualifiers];
-  
+
   if (!lastQualifier || !firstOut) return ties;
-  
+
   const isTied = (a: ComputedStanding, b: ComputedStanding) =>
     a.points === b.points &&
-    (a.sets_for - a.sets_against) === (b.sets_for - b.sets_against) &&
-    (a.games_for - a.games_against) === (b.games_for - b.games_against);
-  
+    a.sets_for - a.sets_against === b.sets_for - b.sets_against &&
+    a.games_for - a.games_against === b.games_for - b.games_against;
+
   if (isTied(lastQualifier, firstOut)) {
-    // Find all teams in this tie cluster
-    const tiedTeams = standings.filter(s => isTied(s, lastQualifier));
+    const tiedTeams = standings.filter((s) => isTied(s, lastQualifier));
     ties.push({
       group_id: groupId,
-      teams: tiedTeams.map(t => t.league_team_id),
+      teams: tiedTeams.map((t) => t.league_team_id),
       rank_position: qualifiers,
     });
   }
-  
+
   return ties;
 }
 
-/**
- * Recommended qualifiers count based on team count.
- * Follows power-of-2 logic for brackets.
- */
-export function recommendQualifiers(totalTeams: number): 2 | 4 | 8 {
+export function recommendQualifiers(totalTeams: number): BracketSize {
   if (totalTeams <= 4) return 2;
   if (totalTeams <= 12) return 4;
+  if (totalTeams <= 16) return 16;
   return 8;
 }
 
-/**
- * Pads the classified teams list with BYE slots to reach the next power of 2.
- */
-export function assignByes(teams: ClassifiedTeam[], targetSize: 2 | 4 | 8): ClassifiedTeam[] {
+export function assignByes(teams: ClassifiedTeam[], targetSize: BracketSize): ClassifiedTeam[] {
   const result = [...teams.slice(0, targetSize)];
   while (result.length < targetSize) {
     result.push({
@@ -70,8 +59,6 @@ export function assignByes(teams: ClassifiedTeam[], targetSize: 2 | 4 | 8): Clas
   return result;
 }
 
-// ---- SEEDING ALGORITHMS ----
-
 interface Matchup {
   slot: string;
   round: number;
@@ -80,14 +67,11 @@ interface Matchup {
   comment: string;
 }
 
-/**
- * Olympic seeding: 1 vs N, 2 vs N-1, 3 vs N-2, 4 vs N-3
- * Seeds 1 & 2 are protected: they can only meet in the Final.
- */
 function realTeams(teams: ClassifiedTeam[]): ClassifiedTeam[] {
   return teams.filter((t) => !t.is_bye);
 }
 
+/** Sembrado olímpico estándar para cuadros de potencia de 2. */
 export function seedOlympic(teams: ClassifiedTeam[]): Matchup[] {
   const n = teams.length;
   if (n < 2) return [];
@@ -108,61 +92,56 @@ export function seedOlympic(teams: ClassifiedTeam[]): Matchup[] {
       { slot: 'QF4', round: 1, team1: teams[2], team2: teams[5], comment: 'Cuartos 4' },
     ];
   }
-  return seedOlympic(teams.slice(0, 8));
+  if (n === 16) {
+    return [
+      { slot: 'OF1', round: 1, team1: teams[0], team2: teams[15], comment: 'Octavos 1' },
+      { slot: 'OF2', round: 1, team1: teams[7], team2: teams[8], comment: 'Octavos 2' },
+      { slot: 'OF3', round: 1, team1: teams[3], team2: teams[12], comment: 'Octavos 3' },
+      { slot: 'OF4', round: 1, team1: teams[4], team2: teams[11], comment: 'Octavos 4' },
+      { slot: 'OF5', round: 1, team1: teams[1], team2: teams[14], comment: 'Octavos 5' },
+      { slot: 'OF6', round: 1, team1: teams[6], team2: teams[9], comment: 'Octavos 6' },
+      { slot: 'OF7', round: 1, team1: teams[2], team2: teams[13], comment: 'Octavos 7' },
+      { slot: 'OF8', round: 1, team1: teams[5], team2: teams[10], comment: 'Octavos 8' },
+    ];
+  }
+  return seedOlympic(teams.slice(0, 16));
 }
 
-/**
- * Group-crossing seeding: ensures teams from the same group
- * don't face each other in the first round.
- *
- * For 2 groups (A/B), 4 classifiers (2 per group):
- *   SF1: 1A vs 2B | SF2: 1B vs 2A
- *
- * For 2 groups, 8 classifiers:
- *   QF1: 1A vs 4B | QF2: 2A vs 3B | QF3: 1B vs 4A | QF4: 2B vs 3A
- */
 export function seedWithGroupCrossing(teams: ClassifiedTeam[]): Matchup[] {
   const real = realTeams(teams);
   const groupIds = [...new Set(real.map((t) => t.group_id).filter(Boolean))];
   const n = teams.length;
 
-  // If no groups or only one group: fall back to olympic seeding
   if (groupIds.length <= 1) return seedOlympic(teams);
 
-  // Sort teams by group, then by rank within group
   const byGroup: Record<string, ClassifiedTeam[]> = {};
   groupIds.forEach((id) => {
     byGroup[id] = [];
   });
   for (const t of real) {
-    if (t.group_id) {
-      byGroup[t.group_id].push(t);
-    }
+    if (t.group_id) byGroup[t.group_id].push(t);
   }
-  Object.values(byGroup).forEach(g => g.sort((a, b) => a.rank_in_group - b.rank_in_group));
+  Object.values(byGroup).forEach((g) => g.sort((a, b) => a.rank_in_group - b.rank_in_group));
 
-  // Distribute BYE teams to fill groups to n/2
   const byes = teams.filter((t) => t.is_bye);
   let byeIdx = 0;
-  const targetGroupSize = Math.floor(n / 2);
+  const targetGroupSize = Math.floor(n / groupIds.length);
   groupIds.forEach((id) => {
     while (byGroup[id].length < targetGroupSize && byeIdx < byes.length) {
       byGroup[id].push(byes[byeIdx++]);
     }
   });
 
-  // 2 groups, 4 classifiers
   if (groupIds.length === 2 && n === 4) {
-    const [gA, gB] = groupIds.map(id => byGroup[id]);
+    const [gA, gB] = groupIds.map((id) => byGroup[id]);
     return [
       { slot: 'SF1', round: 1, team1: gA[0], team2: gB[1], comment: 'Semifinal 1' },
       { slot: 'SF2', round: 1, team1: gB[0], team2: gA[1], comment: 'Semifinal 2' },
     ];
   }
 
-  // 2 groups, 8 classifiers
   if (groupIds.length === 2 && n === 8) {
-    const [gA, gB] = groupIds.map(id => byGroup[id]);
+    const [gA, gB] = groupIds.map((id) => byGroup[id]);
     return [
       { slot: 'QF1', round: 1, team1: gA[0], team2: gB[3], comment: 'Cuartos 1' },
       { slot: 'QF2', round: 1, team1: gA[1], team2: gB[2], comment: 'Cuartos 2' },
@@ -171,26 +150,30 @@ export function seedWithGroupCrossing(teams: ClassifiedTeam[]): Matchup[] {
     ];
   }
 
-  // 3+ groups: best-effort cross-group via overall rank with group checking
-  // Sort by overall rank, then pair 1 vs N olympic style
-  // Try to swap if a pairing has same group
+  if (groupIds.length === 3 && n === 16) {
+    const sorted = [...teams].sort((a, b) => a.overall_rank - b.overall_rank);
+    const matchups = seedOlympic(sorted);
+    for (const matchup of matchups) {
+      if (
+        matchup.team1.group_id !== null &&
+        matchup.team1.group_id === matchup.team2.group_id
+      ) {
+        matchup.comment += ' ⚠️ Mismo grupo';
+      }
+    }
+    return matchups;
+  }
+
   const sorted = [...teams].sort((a, b) => a.overall_rank - b.overall_rank);
   const matchups = seedOlympic(sorted);
-  
-  // Attempt to fix same-group matchups by swapping within their half
   for (const matchup of matchups) {
     if (matchup.team1.group_id !== null && matchup.team1.group_id === matchup.team2.group_id) {
-      // Mark as potentially same-group (admin is warned in UI)
       matchup.comment += ' ⚠️ Mismo grupo';
     }
   }
-  
   return matchups;
 }
 
-/**
- * Main entry point: select seeding algorithm based on config.
- */
 export function generatePlayoffMatchups(
   teams: ClassifiedTeam[],
   config: Pick<PlayoffConfig, 'qualifiers_count' | 'cross_groups'>
@@ -203,28 +186,37 @@ export function generatePlayoffMatchups(
   return seedOlympic(padded);
 }
 
-/**
- * Builds the full bracket tree (rounds after QF/SF → Final).
- * Returns placeholder matches for subsequent rounds with source references.
- */
 export function buildSubsequentRounds(
   firstRoundMatchups: Matchup[],
   _categoryId?: string
 ): Array<{ slot: string; round: number; comment: string; source_slot1: string; source_slot2: string }> {
-  const subsequent: Array<{ slot: string; round: number; comment: string; source_slot1: string; source_slot2: string }> = [];
-  
+  const subsequent: Array<{
+    slot: string;
+    round: number;
+    comment: string;
+    source_slot1: string;
+    source_slot2: string;
+  }> = [];
+
   const n = firstRoundMatchups.length;
-  
-  if (n === 4) {
-    // QF → SF → F
+
+  if (n === 8) {
+    subsequent.push({ slot: 'CF1', round: 2, comment: 'Cuartos 1', source_slot1: 'OF1', source_slot2: 'OF2' });
+    subsequent.push({ slot: 'CF2', round: 2, comment: 'Cuartos 2', source_slot1: 'OF3', source_slot2: 'OF4' });
+    subsequent.push({ slot: 'CF3', round: 2, comment: 'Cuartos 3', source_slot1: 'OF5', source_slot2: 'OF6' });
+    subsequent.push({ slot: 'CF4', round: 2, comment: 'Cuartos 4', source_slot1: 'OF7', source_slot2: 'OF8' });
+    subsequent.push({ slot: 'SF1', round: 3, comment: 'Semifinal 1', source_slot1: 'CF1', source_slot2: 'CF2' });
+    subsequent.push({ slot: 'SF2', round: 3, comment: 'Semifinal 2', source_slot1: 'CF3', source_slot2: 'CF4' });
+    subsequent.push({ slot: 'F', round: 4, comment: 'Gran Final', source_slot1: 'SF1', source_slot2: 'SF2' });
+  } else if (n === 4) {
     subsequent.push({ slot: 'SF1', round: 2, comment: 'Semifinal 1', source_slot1: 'QF1', source_slot2: 'QF2' });
     subsequent.push({ slot: 'SF2', round: 2, comment: 'Semifinal 2', source_slot1: 'QF3', source_slot2: 'QF4' });
     subsequent.push({ slot: 'F', round: 3, comment: 'Gran Final', source_slot1: 'SF1', source_slot2: 'SF2' });
   } else if (n === 2) {
-    // SF → F
     subsequent.push({ slot: 'F', round: 2, comment: 'Gran Final', source_slot1: 'SF1', source_slot2: 'SF2' });
   }
-  // For n=1 (2 teams, direct final), no subsequent rounds needed
-  
+
   return subsequent;
 }
+
+export type { Matchup };

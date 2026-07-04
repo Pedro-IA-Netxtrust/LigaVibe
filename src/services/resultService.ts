@@ -132,6 +132,12 @@ export const resultService = {
 
     if (isResult && (m.phase === 1 || m.phase == null)) {
       await this.recalculateStandings(m.league_category_id);
+    } else if (isResult && m.phase === 2) {
+      const { phase2Service } = await import('./phase2Service');
+      await phase2Service.recalculatePhase2Standings(m.league_category_id);
+    } else if (isResult && m.phase === 3 && opts.winnerTeamId) {
+      const { playoffService } = await import('./playoffService');
+      await playoffService.advanceWinner(matchId, opts.winnerTeamId);
     }
   },
 

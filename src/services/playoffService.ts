@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { mapSupabaseError } from '../lib/supabaseErrors';
-import { generatePlayoffMatchups, buildSubsequentRounds, assignByes } from '../utils/playoffEngine';
+import { PHASE_PLAYOFF } from '../constants/phases';
+import { generatePlayoffMatchups, buildSubsequentRounds } from '../utils/playoffEngine';
 import type { ClassifiedTeam, PlayoffConfig, BracketMatch } from '../types';
 
 export const playoffService = {
@@ -12,7 +13,7 @@ export const playoffService = {
       .from('league_playoff_config')
       .select('*')
       .eq('league_category_id', categoryId)
-      .eq('phase', 2)
+      .eq('phase', PHASE_PLAYOFF)
       .maybeSingle();
 
     if (error) throw new Error(mapSupabaseError(error));
@@ -27,7 +28,7 @@ export const playoffService = {
 
     const payload: Partial<PlayoffConfig> = {
       league_category_id: categoryId,
-      phase: 2,
+      phase: PHASE_PLAYOFF,
       qualifiers_count: config.qualifiers_count ?? 4,
       bracket_type: 'single_elimination',
       cross_groups: config.cross_groups ?? true,
@@ -56,7 +57,7 @@ export const playoffService = {
 
   /**
    * Generates the playoff bracket and inserts all matches into league_matches.
-   * Phase 2, round 1 = first round (QF/SF/F).
+   * Phase 3: cuadro eliminatorio. Round 1 = QF/SF/F.
    * Subsequent rounds are created as placeholder matches (no teams yet).
    */
   async generateBracket(
@@ -69,7 +70,7 @@ export const playoffService = {
       .from('league_matches')
       .delete()
       .eq('league_category_id', categoryId)
-      .eq('phase', 2);
+      .eq('phase', PHASE_PLAYOFF);
     if (delErr) throw new Error(mapSupabaseError(delErr));
 
     // Generate first-round matchups
@@ -83,7 +84,7 @@ export const playoffService = {
       team2_id: m.team2.is_bye ? null : m.team2.league_team_id,
       winner_id: m.team2.is_bye ? m.team1.league_team_id : (m.team1.is_bye ? m.team2.league_team_id : null),
       round: 1,
-      phase: 2,
+      phase: PHASE_PLAYOFF,
       status: m.team2.is_bye || m.team1.is_bye ? 'jugado' : 'pendiente',
       team1_sets: 0,
       team1_games: 0,
@@ -114,7 +115,7 @@ export const playoffService = {
       team2_id: null,
       winner_id: null,
       round: r.round,
-      phase: 2,
+      phase: PHASE_PLAYOFF,
       status: 'pendiente',
       team1_sets: 0,
       team1_games: 0,
@@ -150,7 +151,7 @@ export const playoffService = {
       .from('league_matches')
       .select('id, team1_id, team2_id, source_match1_id, source_match2_id')
       .or(`source_match1_id.eq.${matchId},source_match2_id.eq.${matchId}`)
-      .eq('phase', 2);
+      .eq('phase', PHASE_PLAYOFF);
 
     if (nErr) throw new Error(mapSupabaseError(nErr));
     if (!nextMatches || nextMatches.length === 0) return;
@@ -184,7 +185,7 @@ export const playoffService = {
         team2:league_teams!team2_id(team_name)
       `)
       .eq('league_category_id', categoryId)
-      .eq('phase', 2)
+      .eq('phase', PHASE_PLAYOFF)
       .order('round', { ascending: true })
       .order('playoff_slot', { ascending: true });
 
@@ -205,7 +206,7 @@ export const playoffService = {
       .from('league_matches')
       .delete()
       .eq('league_category_id', categoryId)
-      .eq('phase', 2);
+      .eq('phase', PHASE_PLAYOFF);
     if (error) throw new Error(mapSupabaseError(error));
   },
 };

@@ -140,7 +140,7 @@ export interface PlayoffConfig {
   id?: string;
   league_category_id: string;
   phase: number;
-  qualifiers_count: 2 | 4 | 8;
+  qualifiers_count: 2 | 4 | 8 | 16;
   bracket_type: 'single_elimination';
   cross_groups: boolean;
   protect_seeds: boolean;
@@ -204,6 +204,8 @@ export interface Phase2Config {
   teams_per_group: number;
   qualifiers_per_group: number;
   best_thirds_count: number;
+  /** Mejores N° lugares entre grupos (p. ej. 1 = mejor 6° de los tres grupos). */
+  best_sixths_count: number;
   cross_groups: boolean;
   protect_seeds: boolean;
   points_win: number;
@@ -232,6 +234,7 @@ export interface Phase2Participant {
 export interface Phase2Rule {
   qualifiers_per_group: number;
   best_thirds_count: number;
+  best_sixths_count: number;
 }
 
 export interface Phase2GroupStanding {

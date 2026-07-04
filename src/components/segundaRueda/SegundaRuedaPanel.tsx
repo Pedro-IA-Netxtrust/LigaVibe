@@ -1,0 +1,253 @@
+import React from 'react';
+import { AlertCircle, LayoutGrid, RefreshCw, Users, Info } from 'lucide-react';
+import { Card, Button } from '../ui/Base';
+import { phase2Service } from '../../services/phase2Service';
+import type { Phase2RulesResolved } from '../../utils/secondRoundEngine';
+import { fixtureService } from '../../services/fixtureService';
+import type { LeagueTeam, Phase2GroupStanding, Phase2Classification } from '../../types';
+import { PHASE_SECOND_ROUND } from '../../constants/phases';
+
+interface SegundaRuedaPanelProps {
+  categoryId: string;
+  isCategoryClosed: boolean;
+  allTeams: LeagueTeam[];
+  onReloadMatches: () => Promise<void>;
+  onError: (message: string) => void;
+}
+
+export function SegundaRuedaPanel({
+  categoryId,
+  isCategoryClosed,
+  allTeams,
+  onReloadMatches,
+  onError,
+}: SegundaRuedaPanelProps) {
+  const [loading, setLoading] = React.useState(false);
+  const [participants, setParticipants] = React.useState<
+    Awaited<ReturnType<typeof phase2Service.getParticipants>>
+  >([]);
+  const [standings, setStandings] = React.useState<Phase2GroupStanding[]>([]);
+  const [classification, setClassification] = React.useState<Phase2Classification | null>(null);
+  const [isDoubleRound, setIsDoubleRound] = React.useState(false);
+  const [matchCount, setMatchCount] = React.useState(0);
+  const [rules, setRules] = React.useState<Phase2RulesResolved | null>(null);
+
+  const loadData = React.useCallback(async () => {
+    if (!categoryId) return;
+    setLoading(true);
+    try {
+      const [rulesPreview, p, s, c, matches] = await Promise.all([
+        phase2Service.getPhase2RulesPreview(categoryId),
+        phase2Service.getParticipants(categoryId),
+        phase2Service.previewPhase2Standings(categoryId),
+        phase2Service.getPhase2Classification(categoryId),
+        phase2Service.getPhase2Matches(categoryId),
+      ]);
+      setRules(rulesPreview);
+      setParticipants(p);
+      setStandings(s);
+      setClassification(c);
+      setMatchCount(matches.length);
+    } catch (err: any) {
+      onError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [categoryId, onError]);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleGenerateSecondRound = async () => {
+    setLoading(true);
+    onError('');
+    try {
+      await phase2Service.generateSecondRoundFromPhase1(categoryId, { isDoubleRound });
+      await onReloadMatches();
+      await loadData();
+    } catch (err: any) {
+      onError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearSegundaRueda = async () => {
+    if (!window.confirm('¿Eliminar todos los grupos y partidos de segunda rueda?')) return;
+    setLoading(true);
+    onError('');
+    try {
+      await fixtureService.clearSegundaRueda(categoryId);
+      await onReloadMatches();
+      await loadData();
+    } catch (err: any) {
+      onError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isCategoryClosed) {
+    return (
+      <div className="flex items-center gap-3 p-4 bg-slate-800/40 border border-slate-700 rounded-xl text-slate-400 text-sm">
+        <AlertCircle size={16} className="text-indigo-400" />
+        Cierra la fase regular con <strong className="text-white">Cerrar fixture</strong> para habilitar la segunda rueda.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 px-1">
+        <h3 className="text-xl font-bold text-indigo-400 flex items-center gap-2">
+          <LayoutGrid size={20} /> Segunda rueda
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {matchCount > 0 && (
+            <Button variant="danger" size="sm" onClick={handleClearSegundaRueda} disabled={loading}>
+              Reiniciar segunda rueda
+            </Button>
+          )}
+          <Button variant="secondary" size="sm" onClick={loadData} disabled={loading}>
+            <RefreshCw size={14} className="mr-1" /> Actualizar
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-start gap-3 p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl text-slate-300 text-sm">
+        <Info size={16} className="text-indigo-400 shrink-0 mt-0.5" />
+        <div>
+          <p>{rules?.summary ?? 'Detectando reglas según la estructura de fase 1…'}</p>
+          {rules?.detail && <p className="text-slate-500 mt-1">{rules.detail}</p>}
+          {rules && (
+            <p className="text-slate-500 mt-1">
+              Playoff: {rules.qualifiers_per_group} por grupo
+              {rules.best_sixths_count > 0 && ` + mejor 6°`}
+              {rules.best_thirds_count > 0 && ` + mejores 3°`}
+              {' → '}
+              {rules.playoff_size} parejas. Los puntos de fase 1 se arrastran.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <Card
+        title="Generar segunda rueda desde fase 1"
+        subtitle={
+          rules
+            ? `Fase ${PHASE_SECOND_ROUND} · ${rules.groups_count} grupo${rules.groups_count > 1 ? 's' : ''} · ${rules.format === 'single_group' ? 'liga única' : 'multi-grupo'}`
+            : `Fase ${PHASE_SECOND_ROUND}`
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isDoubleRound}
+                onChange={(e) => setIsDoubleRound(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-indigo-500"
+                disabled={loading}
+              />
+              <span className="text-sm text-slate-300">Ida y vuelta</span>
+            </label>
+            <Button onClick={handleGenerateSecondRound} disabled={loading}>
+              {matchCount > 0 ? 'Regenerar desde fase 1' : 'Generar grupos y fixture'}
+            </Button>
+          </div>
+
+          <div>
+            <h5 className="text-xs uppercase text-slate-400 font-bold mb-2 flex items-center gap-2">
+              <Users size={14} /> Participantes ({participants.length || standings.length || allTeams.length})
+            </h5>
+            {participants.length === 0 && matchCount === 0 ? (
+              <p className="text-sm text-slate-500 italic">
+                Pulsa generar para importar las parejas de fase 1 con las reglas detectadas para esta categoría.
+              </p>
+            ) : (
+              <ul className="space-y-1 max-h-48 overflow-y-auto">
+                {(participants.length ? participants : standings).map((p: any) => (
+                  <li key={p.league_team_id ?? p.id} className="text-sm text-slate-300 px-2">
+                    {p.team_name ?? p.team_name}
+                    {p.group_name && (
+                      <span className="text-slate-500 ml-2">· {p.group_name}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card title="Posiciones (fase 1 + fase 2)" subtitle="Puntos acumulados">
+          {standings.length === 0 ? (
+            <p className="text-sm text-slate-500 italic py-4">Genera la segunda rueda para ver posiciones.</p>
+          ) : (
+            <ul className="space-y-1 mt-2 max-h-80 overflow-y-auto">
+              {standings.map((s) => (
+                <li
+                  key={`${s.league_team_id}-${s.group_id}`}
+                  className="flex justify-between text-sm px-2 py-1.5 border-b border-slate-800/50"
+                >
+                  <span className="text-slate-300">
+                    {s.group_name} · #{s.rank_in_group} {s.team_name}
+                  </span>
+                  <span className="font-mono text-indigo-400">{s.points} pts</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card
+          title="Clasificación a playoffs"
+          subtitle={
+            rules
+              ? `${rules.qualifiers_per_group} por grupo${rules.best_sixths_count ? ' + mejor 6°' : ''} → ${rules.playoff_size}`
+              : 'Según reglas de categoría'
+          }
+        >
+          {!classification ? (
+            <p className="text-sm text-slate-500 italic py-4">Sin datos.</p>
+          ) : (
+            <div className="space-y-4 mt-2">
+              <div>
+                <h5 className="text-xs uppercase text-emerald-400 font-bold mb-2">
+                  Clasifican ({classification.classified.length}/{rules?.playoff_size ?? '?'})
+                </h5>
+                {classification.classified.length === 0 ? (
+                  <p className="text-sm text-slate-500 italic">Completa partidos de segunda rueda.</p>
+                ) : (
+                  <ul className="space-y-1 max-h-48 overflow-y-auto">
+                    {classification.classified.map((m) => (
+                      <li key={m.league_team_id} className="text-sm text-emerald-300">
+                        {m.team_name} · {m.group_name} · #{m.rank_in_group} · {m.points} pts
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <h5 className="text-xs uppercase text-slate-400 font-bold mb-2">Fuera de playoff</h5>
+                {classification.waiting_list.length === 0 ? (
+                  <p className="text-sm text-slate-500 italic">Vacía.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {classification.waiting_list.map((m) => (
+                      <li key={m.league_team_id} className="text-sm text-slate-400">
+                        {m.team_name} · #{m.rank_in_group} · {m.points} pts
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}

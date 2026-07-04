@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS league_phase2_config (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   league_category_id UUID NOT NULL REFERENCES league_categories(id) ON DELETE CASCADE,
   phase INTEGER NOT NULL DEFAULT 2,
-  mode TEXT NOT NULL DEFAULT 'elimination', -- elimination | group_league
+  mode TEXT NOT NULL DEFAULT 'group_league', -- group_league (segunda rueda)
   groups_count INTEGER NOT NULL DEFAULT 2,
   teams_per_group INTEGER NOT NULL DEFAULT 4,
   qualifiers_per_group INTEGER NOT NULL DEFAULT 2,
@@ -60,6 +60,17 @@ CREATE INDEX IF NOT EXISTS idx_phase2_participants_category
 
 CREATE INDEX IF NOT EXISTS idx_phase2_participants_team
   ON league_phase2_participants (league_team_id);
+
+-- MIGRATION 004: RLS (mismo patrón que league_matches)
+-- ------------------------------------------------------------
+ALTER TABLE league_phase2_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE league_phase2_participants ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY admin_all_phase2_config ON league_phase2_config
+  FOR ALL TO public USING (true) WITH CHECK (true);
+
+CREATE POLICY admin_all_phase2_participants ON league_phase2_participants
+  FOR ALL TO public USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- Nota de integración lógica

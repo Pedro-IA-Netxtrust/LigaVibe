@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { mapSupabaseError } from '../lib/supabaseErrors';
+import { PHASE_PLAYOFF, PHASE_SECOND_ROUND } from '../constants/phases';
 import { LeagueMatch, LeagueTeam } from '../types';
 
 export const fixtureService = {
@@ -192,9 +193,40 @@ export const fixtureService = {
       .from('league_matches')
       .delete()
       .eq('league_category_id', categoryId)
-      .eq('phase', 2);
-    
+      .eq('phase', PHASE_PLAYOFF);
+
     if (error) throw new Error(mapSupabaseError(error));
     return true;
-  }
+  },
+
+  async clearSegundaRueda(categoryId: string) {
+    await supabase
+      .from('league_phase2_participants')
+      .delete()
+      .eq('league_category_id', categoryId)
+      .eq('phase', PHASE_SECOND_ROUND);
+
+    const { error: mErr } = await supabase
+      .from('league_matches')
+      .delete()
+      .eq('league_category_id', categoryId)
+      .eq('phase', PHASE_SECOND_ROUND);
+    if (mErr) throw new Error(mapSupabaseError(mErr));
+
+    const { error: gErr } = await supabase
+      .from('league_groups')
+      .delete()
+      .eq('league_category_id', categoryId)
+      .eq('phase', PHASE_SECOND_ROUND);
+    if (gErr) throw new Error(mapSupabaseError(gErr));
+
+    const { error: sErr } = await supabase
+      .from('league_standings')
+      .delete()
+      .eq('league_category_id', categoryId)
+      .eq('phase', PHASE_SECOND_ROUND);
+    if (sErr) throw new Error(mapSupabaseError(sErr));
+
+    return true;
+  },
 };

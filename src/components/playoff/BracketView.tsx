@@ -15,19 +15,35 @@ interface BracketViewProps {
 
 function roundLabel(round: number, matches: BracketMatch[]): string {
   const r1 = matches.filter((m) => m.round === 1);
+  const hasOf = r1.some((m) => m.playoff_slot?.startsWith('OF'));
   const hasQf = r1.some((m) => m.playoff_slot?.startsWith('QF'));
   const hasSf = r1.some((m) => m.playoff_slot?.startsWith('SF'));
   if (round === 1) {
+    if (hasOf) return 'Octavos de final';
     if (hasQf) return 'Cuartos de final';
     if (hasSf) return 'Semifinales';
     return 'Ronda inicial';
   }
-  if (round === 2) return hasQf ? 'Semifinales' : 'Gran final';
-  if (round === 3) return 'Gran final';
+  if (round === 2) {
+    if (hasOf) return 'Cuartos de final';
+    if (hasQf) return 'Semifinales';
+    return 'Gran final';
+  }
+  if (round === 3) {
+    if (hasOf) return 'Semifinales';
+    return 'Gran final';
+  }
+  if (round === 4) return 'Gran final';
   return `Ronda ${round}`;
 }
 
-const SLOT_ORDER = ['QF1', 'QF2', 'QF3', 'QF4', 'SF1', 'SF2', 'F', '3P'];
+const SLOT_ORDER = [
+  'OF1', 'OF2', 'OF3', 'OF4', 'OF5', 'OF6', 'OF7', 'OF8',
+  'CF1', 'CF2', 'CF3', 'CF4',
+  'QF1', 'QF2', 'QF3', 'QF4',
+  'SF1', 'SF2',
+  'F', '3P',
+];
 
 export function BracketView({ matches, onEditMatch, onResultSaved, onSubmitResult }: BracketViewProps) {
   const [modalMatch, setModalMatch] = React.useState<MatchRow | null>(null);

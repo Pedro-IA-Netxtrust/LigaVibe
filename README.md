@@ -12,9 +12,30 @@ Este proyecto está optimizado para desplegarse en [Vercel](https://vercel.com).
     *   `VITE_SUPABASE_ANON_KEY`: Su clave anónima de Supabase.
 3.  **Configuración Automática**: Vercel detectará Vite y usará `npm run build` automáticamente. El archivo `vercel.json` incluido maneja las rutas de Single Page Application (SPA).
 
+## Desarrollo local
+
+```bash
+npm install
+npm run dev
+```
+
+La app queda en **http://localhost:3000**. Requiere `.env` con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+
+## Manual de torneo (fases 2 y 3)
+
+Guía detallada de cierre de fixture, segunda rueda y playoffs: **[docs/MANUAL_USUARIO.md](docs/MANUAL_USUARIO.md)**
+
+Incluye reglas automáticas por formato:
+- **Multi-grupo** (2–3+ grupos): matriz de rotación por posición.
+- **Liga única**: mismo grupo o serpenteo en sub-grupos según cantidad de parejas.
+- Playoffs de **2, 4, 8 o 16** parejas según clasificados.
+
 ## ✨ Características
 
 - ✅ **Fixture Dinámico**: Generación de grupos y ligas tipo Round Robin.
+- ✅ **Cierre de fase**: Snapshot de posiciones, resolución de empates y congelado de fase 1.
+- ✅ **Segunda rueda**: Redistribución automática (matriz o serpenteo) con arrastre de puntos.
+- ✅ **Playoffs**: Cuadro eliminatorio 2/4/8/16 con seeds desde segunda rueda.
 - ✅ **Gestión de Resultados**: Carga flexible con sets opcionales (modo rápido) o detallado.
 - ✅ **Tabla de Posiciones**: Cálculo automático basado en puntos (3-2-1-0) y diferencia de sets/games.
 - ✅ **Zona de Peligro**: Reset completo de categorías para administradores.
