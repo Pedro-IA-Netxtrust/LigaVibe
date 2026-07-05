@@ -1,13 +1,13 @@
 import React from 'react';
-import { AlertCircle, Trophy } from 'lucide-react';
-import { Button } from '../ui/Base';
+import { AlertCircle, Trophy, Users, Info } from 'lucide-react';
+import { Card, Button } from '../ui/Base';
 import { BracketView } from '../playoff/BracketView';
 import { playoffService } from '../../services/playoffService';
 import { phase2Service } from '../../services/phase2Service';
 import type { Phase2RulesResolved } from '../../utils/secondRoundEngine';
 import type { BracketSize } from '../../utils/playoffEngine';
 import { resultService } from '../../services/resultService';
-import type { BracketMatch, LeagueMatch, PlayoffConfig } from '../../types';
+import type { BracketMatch, ClassifiedTeam, LeagueMatch, PlayoffConfig } from '../../types';
 
 interface PlayoffPanelProps {
   categoryId: string;
@@ -25,10 +25,11 @@ export function PlayoffPanel({
   const [loading, setLoading] = React.useState(false);
   const [bracketMatches, setBracketMatches] = React.useState<BracketMatch[]>([]);
   const [playoffConfig, setPlayoffConfig] = React.useState<PlayoffConfig | null>(null);
-  const [classifiedCount, setClassifiedCount] = React.useState(0);
+  const [classifiedTeams, setClassifiedTeams] = React.useState<ClassifiedTeam[]>([]);
   const [rules, setRules] = React.useState<Phase2RulesResolved | null>(null);
 
   const playoffSize: BracketSize = rules?.playoff_size ?? 16;
+  const classifiedCount = classifiedTeams.length;
 
   const loadBracket = React.useCallback(async () => {
     if (!categoryId) return;
@@ -41,7 +42,7 @@ export function PlayoffPanel({
       ]);
       setBracketMatches(bracket);
       setPlayoffConfig(cfg);
-      setClassifiedCount(classified.length);
+      setClassifiedTeams(classified);
       setRules(rulesPreview);
     } catch (err: any) {
       onError(err.message);
@@ -59,7 +60,7 @@ export function PlayoffPanel({
       const classified = await phase2Service.getPlayoffClassifiedTeams(categoryId);
       if (classified.length < 2) {
         throw new Error(
-          'No hay clasificados. Completa la segunda rueda y verifica la clasificación antes de generar el cuadro.'
+          'No hay clasificados suficientes. Completa la segunda rueda y verifica la clasificación antes de generar el cuadro.'
         );
       }
       const rulesPreview = await phase2Service.getPhase2RulesPreview(categoryId);
@@ -110,7 +111,10 @@ export function PlayoffPanel({
         </h3>
         <div className="flex flex-wrap gap-2">
           {bracketMatches.length === 0 && (
-            <Button onClick={handleGenerateBracket} disabled={loading}>
+            <Button
+              onClick={handleGenerateBracket}
+              disabled={loading || classifiedCount < 2}
+            >
               Generar cuadro ({playoffSize})
             </Button>
           )}
@@ -123,33 +127,70 @@ export function PlayoffPanel({
       </div>
 
       {bracketMatches.length === 0 && (
-        <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl text-sm text-slate-300">
-          <p>
-            {rules?.summary ?? 'Reglas de playoff según la categoría.'}
-          </p>
-          {rules?.detail && <p className="text-slate-500 mt-1">{rules.detail}</p>}
-          <p className="text-slate-500 mt-2">
-            Clasificados detectados: <strong className="text-amber-400">{classifiedCount}</strong>
-            {' / '}
-            <strong className="text-white">{playoffSize}</strong>
-            {classifiedCount < playoffSize && ' — completa la segunda rueda para alcanzar el cupo.'}
-          </p>
-        </div>
+        <>
+          <div className="flex items-start gap-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl text-sm text-slate-300">
+            <Info size={16} className="text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p>{rules?.summary ?? 'Reglas de playoff según la categoría.'}</p>
+              {rules?.detail && <p className="text-slate-500 mt-1">{rules.detail}</p>}
+              <p className="text-slate-500 mt-2">
+                Clasificados detectados: <strong className="text-amber-400">{classifiedCount}</strong>
+                {' / '}
+                <strong className="text-white">{playoffSize}</strong>
+                {classifiedCount < playoffSize && ' — completa la segunda rueda para alcanzar el cupo.'}
+              </p>
+            </div>
+          </div>
+
+          <Card
+            title="Parejas clasificadas"
+            subtitle={`Orden de siembra para cuadro de ${playoffSize}`}
+          >
+            {classifiedTeams.length === 0 ? (
+              <p className="text-sm text-slate-500 italic py-4">
+                Aún no hay clasificados. Genera y completa la segunda rueda primero.
+              </p>
+            ) : (
+              <ul className="space-y-1 mt-2 max-h-64 overflow-y-auto">
+                {classifiedTeams.map((t) => (
+                  <li
+                    key={t.league_team_id}
+                    className="flex justify-between text-sm px-2 py-1.5 border-b border-slate-800/50"
+                  >
+                    <span className="text-slate-300 flex items-center gap-2">
+                      <span className="font-mono text-amber-400 w-6">#{t.overall_rank}</span>
+                      <Users size={12} className="text-slate-600" />
+                      {t.team_name}
+                      {t.group_name && (
+                        <span className="text-slate-500">· {t.group_name} #{t.rank_in_group}</span>
+                      )}
+                    </span>
+                    <span className="font-mono text-slate-400">{t.points} pts</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </>
       )}
 
-      <BracketView
-        matches={bracketMatches}
-        onEditMatch={onEditMatch}
-        onResultSaved={loadBracket}
-        onSubmitResult={async (matchId, payload) => {
-          await resultService.updateMatchResult(matchId, payload);
-        }}
-      />
+      {bracketMatches.length > 0 && (
+        <>
+          <BracketView
+            matches={bracketMatches}
+            onEditMatch={onEditMatch}
+            onResultSaved={loadBracket}
+            onSubmitResult={async (matchId, payload) => {
+              await resultService.updateMatchResult(matchId, payload);
+            }}
+          />
 
-      {playoffConfig && bracketMatches.length > 0 && (
-        <p className="text-xs text-slate-500 text-center">
-          Cuadro de {playoffConfig.qualifiers_count} parejas · octavos → cuartos → semis → final
-        </p>
+          {playoffConfig && (
+            <p className="text-xs text-slate-500 text-center">
+              Cuadro de {playoffConfig.qualifiers_count} parejas · octavos → cuartos → semis → final
+            </p>
+          )}
+        </>
       )}
     </div>
   );

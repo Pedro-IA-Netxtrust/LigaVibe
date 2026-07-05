@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { NetxtrustBrand } from '../components/ui/NetxtrustBrand';
+import { APP_VERSION, APP_VERSION_NOTES } from '../constants/version';
 
 interface SidebarProps {
   activePage: string;
@@ -97,7 +98,18 @@ export function Sidebar({ activePage }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-slate-800/50 mt-auto">
+      <div className="p-4 border-t border-slate-800/50 mt-auto space-y-2">
+        {!isCollapsed && (
+          <div className="px-2 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800">
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">{APP_VERSION}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{APP_VERSION_NOTES}</p>
+          </div>
+        )}
+        {isCollapsed && (
+          <p className="text-center text-[10px] font-bold text-indigo-400" title={APP_VERSION_NOTES}>
+            {APP_VERSION}
+          </p>
+        )}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="w-full flex items-center justify-center p-2 hover:bg-slate-800 rounded-lg text-slate-500 transition-colors"

@@ -229,6 +229,8 @@ export interface Phase2Participant {
   created_at: string;
   updated_at: string;
   team_name?: string;
+  group_id?: string | null;
+  group_name?: string | null;
 }
 
 export interface Phase2Rule {

@@ -44,10 +44,19 @@ export const FixtureEngine = {
     teams: LeagueTeam[],
     categoryId: string,
     groupId: string | null = null,
-    isDoubleRound: boolean = false
+    isDoubleRound: boolean = false,
+    options: { skipCompletenessCheck?: boolean } = {}
   ): Partial<LeagueMatch>[] {
     const matches: Partial<LeagueMatch>[] = [];
-    const complete = teams.filter((t) => t.player1_id && t.player2_id);
+    const complete = options.skipCompletenessCheck
+      ? teams.filter((t) => t.id)
+      : teams.filter((t) => {
+          const isGhost =
+            t.is_ghost === true ||
+            (t.team_name || '').toLowerCase().includes('fantasma') ||
+            (t.team_name || '').toLowerCase().includes('bye');
+          return (t.player1_id && t.player2_id) || isGhost;
+        });
     if (complete.length < 2) return [];
 
     const n = complete.length;

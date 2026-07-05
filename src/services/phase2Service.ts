@@ -25,6 +25,7 @@ import type {
   Phase2GroupStanding,
   ClassifiedTeam,
 } from '../types';
+import type { GroupConfig } from '../utils/fixtureEngine';
 
 /** Defaults torneo 3×7 (se sobreescriben al detectar formato de categoría). */
 export const TOURNAMENT_PHASE2_DEFAULTS = {
@@ -256,6 +257,16 @@ export const phase2Service = {
     });
   },
 
+  /** Preview de grupos de segunda rueda sin persistir (para UI). */
+  async previewSecondRoundGroups(categoryId: string): Promise<GroupConfig[]> {
+    const phase1Groups = await this.getPhase1StandingsByGroup(categoryId);
+    if (phase1Groups.length === 0 || phase1Groups.every((g) => g.length === 0)) {
+      return [];
+    }
+    const rules = resolvePhase2Rules(phase1Groups);
+    return buildSecondRoundGroups(phase1Groups, rules);
+  },
+
   async getParticipants(categoryId: string): Promise<Phase2Participant[]> {
     const { data, error } = await supabase
       .from('league_phase2_participants')
@@ -270,7 +281,20 @@ export const phase2Service = {
       .order('created_at', { ascending: true });
 
     if (error) throw new Error(mapSupabaseError(error));
-    return ((data || []) as Phase2ParticipantRow[]).map(toPhase2Participant);
+    const participants = ((data || []) as Phase2ParticipantRow[]).map(toPhase2Participant);
+
+    const standings = await this.previewPhase2Standings(categoryId);
+    const groupByTeam = new Map<
+      string,
+      { group_id: string | null; group_name: string | null }
+    >(
+      standings.map((s) => [s.league_team_id, { group_id: s.group_id, group_name: s.group_name }])
+    );
+
+    return participants.map((p) => {
+      const g = groupByTeam.get(p.league_team_id);
+      return g ? { ...p, group_id: g.group_id, group_name: g.group_name } : p;
+    });
   },
 
   async getParticipantCarryoverMap(categoryId: string): Promise<Map<string, CarryoverStats>> {
@@ -431,10 +455,25 @@ export const phase2Service = {
     });
 
     const allTeamIds = redistributed.flatMap((g) => g.teams.map((t) => t.id));
+
+    const { data: fullTeams, error: tErr } = await supabase
+      .from('league_teams')
+      .select('*')
+      .in('id', allTeamIds);
+    if (tErr) throw new Error(mapSupabaseError(tErr));
+    const teamById = new Map<string, LeagueTeam>(
+      (fullTeams || []).map((t) => [t.id, t as LeagueTeam])
+    );
+
+    const enrichedGroups = redistributed.map((g) => ({
+      ...g,
+      teams: g.teams.map((t) => teamById.get(t.id) ?? (t as LeagueTeam)),
+    }));
+
     await this.seedParticipantsFromPhase1(categoryId, allTeamIds, null, carryoverByTeam);
 
     const { error: cErr } = await supabase.from('league_groups').insert(
-      redistributed.map((g) => ({
+      enrichedGroups.map((g) => ({
         league_category_id: categoryId,
         phase: PHASE_SECOND_ROUND,
         group_name: g.groupName,
@@ -454,7 +493,7 @@ export const phase2Service = {
     );
 
     const standingRows: Record<string, unknown>[] = [];
-    redistributed.forEach((g) => {
+    enrichedGroups.forEach((g) => {
       const groupId = groupNameToId.get(g.groupName);
       g.teams.forEach((t) => {
         const p1 = phase1Lookup.get(t.id);
@@ -483,12 +522,13 @@ export const phase2Service = {
       if (sErr) throw new Error(mapSupabaseError(sErr));
     }
 
-    const matches = redistributed.flatMap((g) =>
+    const matches = enrichedGroups.flatMap((g) =>
       FixtureEngine.generateRoundRobin(
-        g.teams as LeagueTeam[],
+        g.teams,
         categoryId,
         g.groupName,
-        options.isDoubleRound ?? false
+        options.isDoubleRound ?? false,
+        { skipCompletenessCheck: true }
       ).map((m) => ({
         ...m,
         league_group_id: groupNameToId.get(g.groupName) ?? null,

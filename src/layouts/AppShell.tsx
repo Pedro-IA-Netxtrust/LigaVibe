@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
+import { APP_VERSION } from '../constants/version';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -37,6 +38,9 @@ export function AppShell({ children, activePage }: AppShellProps) {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <div className="bg-slate-800/80 text-slate-400 text-[10px] font-bold px-2 py-1 rounded border border-slate-700 uppercase tracking-wider">
+              {APP_VERSION}
+            </div>
             <div className="bg-indigo-500/10 text-indigo-400 text-[10px] font-bold px-2 py-1 rounded border border-indigo-500/20 uppercase tracking-wider">
               Supabase Live
             </div>
