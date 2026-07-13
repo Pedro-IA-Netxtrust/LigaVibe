@@ -222,8 +222,16 @@ function matchToRow(m: BracketMatch): MatchRow {
     id: m.id,
     team1_id: m.team1_id ?? '',
     team2_id: m.team2_id ?? '',
-    team1: m.team1_name ? { team_name: m.team1_name } : undefined,
-    team2: m.team2_name ? { team_name: m.team2_name } : undefined,
+    team1: m.team1 ? {
+      team_name: m.team1_name || m.team1.team_name,
+      player1: m.team1.player1 ?? undefined,
+      player2: m.team1.player2 ?? undefined
+    } : m.team1_name ? { team_name: m.team1_name } : undefined,
+    team2: m.team2 ? {
+      team_name: m.team2_name || m.team2.team_name,
+      player1: m.team2.player1 ?? undefined,
+      player2: m.team2.player2 ?? undefined
+    } : m.team2_name ? { team_name: m.team2_name } : undefined,
     status: m.status,
     winner_id: m.winner_id,
     comment: m.comment,

@@ -157,6 +157,30 @@ export interface ClassifiedTeam {
   sets_diff: number;
   games_diff: number;
   is_bye?: boolean;
+  /** Origen en fase 1 (para trazabilidad visual). */
+  phase1_group_name?: string | null;
+  phase1_rank_in_group?: number;
+  /** Alias explícito de segunda rueda (mismo que group_name / rank_in_group). */
+  phase2_group_name?: string | null;
+  phase2_rank_in_group?: number;
+}
+
+/** Pareja en un grupo de segunda rueda con origen en fase 1. */
+export interface SecondRoundTeamDetail {
+  league_team_id: string;
+  team_name: string;
+  phase1_group_name: string;
+  phase1_rank_in_group: number;
+  phase1_points: number;
+  destination_group_name: string;
+  /** Fila de posición en la matriz / serpenteo (1° fila, 2° fila…). */
+  position_slot: number;
+  changed_group: boolean;
+}
+
+export interface SecondRoundGroupDetail {
+  groupName: string;
+  teams: SecondRoundTeamDetail[];
 }
 
 export interface TieGroup {
@@ -290,4 +314,16 @@ export interface BracketMatch {
   match_date?: string | null;
   match_time?: string | null;
   court_name?: string | null;
+  team1?: {
+    id: string;
+    team_name: string;
+    player1?: { first_name: string; last_name: string; rut?: string; phone?: string } | null;
+    player2?: { first_name: string; last_name: string; rut?: string; phone?: string } | null;
+  } | null;
+  team2?: {
+    id: string;
+    team_name: string;
+    player1?: { first_name: string; last_name: string; rut?: string; phone?: string } | null;
+    player2?: { first_name: string; last_name: string; rut?: string; phone?: string } | null;
+  } | null;
 }

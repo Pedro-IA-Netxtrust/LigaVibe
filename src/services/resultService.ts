@@ -236,7 +236,7 @@ export const resultService = {
   async deleteMatchResult(matchId: string) {
     const { data: m, error: fe } = await supabase
       .from('league_matches')
-      .select('league_category_id')
+      .select('league_category_id, phase')
       .eq('id', matchId)
       .single();
 
@@ -262,6 +262,12 @@ export const resultService = {
       .eq('id', matchId);
 
     if (error) throw new Error(mapSupabaseError(error));
-    await this.recalculateStandings(m.league_category_id);
+
+    if (m.phase === 1 || m.phase == null) {
+      await this.recalculateStandings(m.league_category_id);
+    } else if (m.phase === 2) {
+      const { phase2Service } = await import('./phase2Service');
+      await phase2Service.recalculatePhase2Standings(m.league_category_id);
+    }
   }
 };

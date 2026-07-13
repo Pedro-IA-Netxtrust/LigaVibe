@@ -1,17 +1,18 @@
 import React from 'react';
-import { AlertCircle, LayoutGrid, RefreshCw, Users, Info, Star } from 'lucide-react';
+import { AlertCircle, LayoutGrid, RefreshCw, Info } from 'lucide-react';
 import { Card, Button } from '../ui/Base';
 import { phase2Service } from '../../services/phase2Service';
 import type { Phase2RulesResolved } from '../../utils/secondRoundEngine';
-import type { GroupConfig } from '../../utils/fixtureEngine';
 import { fixtureService } from '../../services/fixtureService';
-import type { LeagueTeam, Phase2GroupStanding, Phase2Classification } from '../../types';
+import type { Phase2GroupStanding, Phase2Classification, SecondRoundGroupDetail } from '../../types';
 import { PHASE_SECOND_ROUND } from '../../constants/phases';
+import { SecondRoundGroupsView } from './SecondRoundGroupsView';
+import { GroupBadge } from '../shared/GroupBadge';
+import { ArrowRight } from 'lucide-react';
 
 interface SegundaRuedaPanelProps {
   categoryId: string;
   isCategoryClosed: boolean;
-  allTeams: LeagueTeam[];
   onReloadMatches: () => Promise<void>;
   onError: (message: string) => void;
 }
@@ -19,17 +20,13 @@ interface SegundaRuedaPanelProps {
 export function SegundaRuedaPanel({
   categoryId,
   isCategoryClosed,
-  allTeams,
   onReloadMatches,
   onError,
 }: SegundaRuedaPanelProps) {
   const [loading, setLoading] = React.useState(false);
-  const [participants, setParticipants] = React.useState<
-    Awaited<ReturnType<typeof phase2Service.getParticipants>>
-  >([]);
   const [standings, setStandings] = React.useState<Phase2GroupStanding[]>([]);
   const [classification, setClassification] = React.useState<Phase2Classification | null>(null);
-  const [groupPreview, setGroupPreview] = React.useState<GroupConfig[]>([]);
+  const [groupDetails, setGroupDetails] = React.useState<SecondRoundGroupDetail[]>([]);
   const [isDoubleRound, setIsDoubleRound] = React.useState(false);
   const [matchCount, setMatchCount] = React.useState(0);
   const [rules, setRules] = React.useState<Phase2RulesResolved | null>(null);
@@ -38,20 +35,18 @@ export function SegundaRuedaPanel({
     if (!categoryId) return;
     setLoading(true);
     try {
-      const [rulesPreview, p, s, c, matches, preview] = await Promise.all([
+      const [rulesPreview, s, c, matches, details] = await Promise.all([
         phase2Service.getPhase2RulesPreview(categoryId),
-        phase2Service.getParticipants(categoryId),
         phase2Service.previewPhase2Standings(categoryId),
         phase2Service.getPhase2Classification(categoryId),
         phase2Service.getPhase2Matches(categoryId),
-        phase2Service.previewSecondRoundGroups(categoryId),
+        phase2Service.previewSecondRoundGroupDetails(categoryId),
       ]);
       setRules(rulesPreview);
-      setParticipants(p);
       setStandings(s);
       setClassification(c);
       setMatchCount(matches.length);
-      setGroupPreview(preview);
+      setGroupDetails(details);
     } catch (err: any) {
       onError(err.message);
     } finally {
@@ -92,38 +87,27 @@ export function SegundaRuedaPanel({
     }
   };
 
-  const activeGroups: GroupConfig[] = React.useMemo(() => {
-    if (matchCount > 0 && standings.length > 0) {
-      const byGroup = new Map<string, { groupName: string; teams: { id: string; team_name: string; rank: number }[] }>();
-      standings.forEach((s) => {
-        const key = s.group_id ?? s.group_name ?? '__liga__';
-        if (!byGroup.has(key)) {
-          byGroup.set(key, { groupName: s.group_name ?? 'Liga Única', teams: [] });
-        }
-        byGroup.get(key)!.teams.push({
-          id: s.league_team_id,
-          team_name: s.team_name,
-          rank: s.rank_in_group,
-        });
-      });
-      return [...byGroup.values()].map((g) => ({
-        groupName: g.groupName,
-        teams: g.teams
-          .sort((a, b) => a.rank - b.rank)
-          .map((t) => ({ id: t.id, team_name: t.team_name }) as LeagueTeam),
-      }));
-    }
-    return groupPreview;
-  }, [matchCount, standings, groupPreview]);
-
   const estimatedMatches = React.useMemo(() => {
-    return activeGroups.reduce((sum, g) => {
+    return groupDetails.reduce((sum, g) => {
       const n = g.teams.length;
       if (n < 2) return sum;
       const single = (n * (n - 1)) / 2;
       return sum + (isDoubleRound ? single * 2 : single);
     }, 0);
-  }, [activeGroups, isDoubleRound]);
+  }, [groupDetails, isDoubleRound]);
+
+  const originByTeam = React.useMemo(() => {
+    const map = new Map<string, { phase1_group_name: string; phase1_rank: number }>();
+    groupDetails.forEach((g) =>
+      g.teams.forEach((t) =>
+        map.set(t.league_team_id, {
+          phase1_group_name: t.phase1_group_name,
+          phase1_rank: t.phase1_rank_in_group,
+        })
+      )
+    );
+    return map;
+  }, [groupDetails]);
 
   if (!isCategoryClosed) {
     return (
@@ -170,40 +154,19 @@ export function SegundaRuedaPanel({
       </div>
 
       <Card
-        title={matchCount > 0 ? 'Grupos de segunda rueda' : 'Vista previa de grupos'}
+        title={matchCount > 0 ? 'Grupos de segunda rueda' : 'Redistribución fase 1 → segunda rueda'}
         subtitle={
           rules
-            ? `Fase ${PHASE_SECOND_ROUND} · ${rules.groups_count} grupo${rules.groups_count > 1 ? 's' : ''} · ${rules.format === 'single_group' ? 'liga única' : 'multi-grupo'}`
+            ? `Fase ${PHASE_SECOND_ROUND} · ${rules.groups_count} grupo${rules.groups_count > 1 ? 's' : ''} · cada pareja muestra de dónde viene y dónde queda`
             : `Fase ${PHASE_SECOND_ROUND}`
         }
       >
-        {activeGroups.length === 0 ? (
+        {groupDetails.length === 0 ? (
           <p className="text-sm text-slate-500 italic py-4">
             No hay datos de fase 1 suficientes para calcular la redistribución.
           </p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-            {activeGroups.map((group) => (
-              <div
-                key={group.groupName}
-                className="p-4 bg-slate-950 border border-slate-800 rounded-xl"
-              >
-                <h5 className="text-sm font-bold text-indigo-400 mb-3">
-                  {group.groupName}
-                  <span className="text-slate-500 font-normal ml-2">({group.teams.length} parejas)</span>
-                </h5>
-                <ul className="space-y-1.5 max-h-48 overflow-y-auto">
-                  {group.teams.map((t, idx) => (
-                    <li key={t.id} className="text-sm text-slate-300 flex items-center gap-2">
-                      <span className="text-slate-600 font-mono text-xs w-5">#{idx + 1}</span>
-                      <span className="italic">{t.team_name}</span>
-                      {t.is_seeded && <Star size={12} className="text-amber-500 shrink-0" fill="currentColor" />}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <SecondRoundGroupsView groups={groupDetails} />
         )}
       </Card>
 
@@ -229,55 +192,47 @@ export function SegundaRuedaPanel({
               />
               <span className="text-sm text-slate-300">Ida y vuelta</span>
             </label>
-            <Button onClick={handleGenerateSecondRound} disabled={loading || activeGroups.length === 0}>
+            <Button onClick={handleGenerateSecondRound} disabled={loading || groupDetails.length === 0}>
               {matchCount > 0 ? 'Regenerar desde fase 1' : 'Generar grupos y fixture'}
             </Button>
           </div>
 
-          {matchCount === 0 && activeGroups.length > 0 && (
+          {matchCount === 0 && groupDetails.length > 0 && (
             <p className="text-xs text-slate-500">
-              La redistribución se calcula automáticamente según las posiciones de fase 1.
-              Al confirmar se crean los grupos, se arrastran los puntos y se genera el round robin.
+              Revisa arriba la redistribución antes de confirmar. Al generar se crean grupos, se arrastran puntos
+              y se programa el round robin.
             </p>
-          )}
-
-          {participants.length > 0 && (
-            <div>
-              <h5 className="text-xs uppercase text-slate-400 font-bold mb-2 flex items-center gap-2">
-                <Users size={14} /> Participantes ({participants.length || allTeams.length})
-              </h5>
-              <ul className="space-y-1 max-h-36 overflow-y-auto">
-                {participants.map((p) => (
-                  <li key={p.league_team_id} className="text-sm text-slate-300 px-2">
-                    {p.team_name}
-                    {p.group_name && (
-                      <span className="text-slate-500 ml-2">· {p.group_name}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
           )}
         </div>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Posiciones (fase 1 + fase 2)" subtitle="Puntos acumulados">
+        <Card title="Posiciones (fase 1 + fase 2)" subtitle="Puntos acumulados en segunda rueda">
           {standings.length === 0 ? (
             <p className="text-sm text-slate-500 italic py-4">Genera la segunda rueda para ver posiciones.</p>
           ) : (
             <ul className="space-y-1 mt-2 max-h-80 overflow-y-auto">
-              {standings.map((s) => (
-                <li
-                  key={`${s.league_team_id}-${s.group_id}`}
-                  className="flex justify-between text-sm px-2 py-1.5 border-b border-slate-800/50"
-                >
-                  <span className="text-slate-300">
-                    {s.group_name} · #{s.rank_in_group} {s.team_name}
-                  </span>
-                  <span className="font-mono text-indigo-400">{s.points} pts</span>
-                </li>
-              ))}
+              {standings.map((s) => {
+                const origin = originByTeam.get(s.league_team_id);
+                return (
+                  <li
+                    key={`${s.league_team_id}-${s.group_id}`}
+                    className="flex justify-between items-center gap-2 text-sm px-2 py-1.5 border-b border-slate-800/50"
+                  >
+                    <span className="text-slate-300 flex items-center gap-1.5 flex-wrap min-w-0">
+                      {origin && (
+                        <>
+                          <GroupBadge groupName={origin.phase1_group_name} rank={origin.phase1_rank} />
+                          <ArrowRight size={10} className="text-slate-600 shrink-0" />
+                        </>
+                      )}
+                      <GroupBadge groupName={s.group_name ?? 'Grupo'} rank={s.rank_in_group} />
+                      <span className="truncate italic">{s.team_name}</span>
+                    </span>
+                    <span className="font-mono text-indigo-400 shrink-0">{s.points} pts</span>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>
@@ -302,11 +257,25 @@ export function SegundaRuedaPanel({
                   <p className="text-sm text-slate-500 italic">Completa partidos de segunda rueda.</p>
                 ) : (
                   <ul className="space-y-1 max-h-48 overflow-y-auto">
-                    {classification.classified.map((m) => (
-                      <li key={m.league_team_id} className="text-sm text-emerald-300">
-                        {m.team_name} · {m.group_name} · #{m.rank_in_group} · {m.points} pts
-                      </li>
-                    ))}
+                    {classification.classified.map((m) => {
+                      const origin = originByTeam.get(m.league_team_id);
+                      return (
+                        <li
+                          key={m.league_team_id}
+                          className="text-sm text-emerald-300 flex flex-wrap items-center gap-1.5 py-1"
+                        >
+                          {origin && (
+                            <>
+                              <GroupBadge groupName={origin.phase1_group_name} rank={origin.phase1_rank} />
+                              <ArrowRight size={10} className="text-slate-600" />
+                            </>
+                          )}
+                          <GroupBadge groupName={m.group_name ?? '?'} rank={m.rank_in_group} />
+                          <span className="italic">{m.team_name}</span>
+                          <span className="text-emerald-500/70 font-mono text-xs">{m.points} pts</span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
@@ -316,11 +285,24 @@ export function SegundaRuedaPanel({
                   <p className="text-sm text-slate-500 italic">Vacía.</p>
                 ) : (
                   <ul className="space-y-1">
-                    {classification.waiting_list.map((m) => (
-                      <li key={m.league_team_id} className="text-sm text-slate-400">
-                        {m.team_name} · #{m.rank_in_group} · {m.points} pts
-                      </li>
-                    ))}
+                    {classification.waiting_list.map((m) => {
+                      const origin = originByTeam.get(m.league_team_id);
+                      return (
+                        <li
+                          key={m.league_team_id}
+                          className="text-sm text-slate-400 flex flex-wrap items-center gap-1.5 py-0.5"
+                        >
+                          {origin && (
+                            <>
+                              <GroupBadge groupName={origin.phase1_group_name} rank={origin.phase1_rank} />
+                              <ArrowRight size={10} className="text-slate-600" />
+                            </>
+                          )}
+                          <GroupBadge groupName={m.group_name ?? '?'} rank={m.rank_in_group} />
+                          <span>{m.team_name}</span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

@@ -181,8 +181,18 @@ export const playoffService = {
         s1_t1, s1_t2, s2_t1, s2_t2, s3_t1, s3_t2,
         team1_sets, team2_sets, team1_games, team2_games,
         match_date, match_time, court_name,
-        team1:league_teams!team1_id(team_name),
-        team2:league_teams!team2_id(team_name)
+        team1:league_teams!team1_id(
+          id,
+          team_name,
+          player1:clients!player1_id(first_name, last_name, rut, phone),
+          player2:clients!player2_id(first_name, last_name, rut, phone)
+        ),
+        team2:league_teams!team2_id(
+          id,
+          team_name,
+          player1:clients!player1_id(first_name, last_name, rut, phone),
+          player2:clients!player2_id(first_name, last_name, rut, phone)
+        )
       `)
       .eq('league_category_id', categoryId)
       .eq('phase', PHASE_PLAYOFF)

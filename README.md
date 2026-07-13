@@ -1,6 +1,6 @@
 # 🎾 Liga Vibe 2026 - Tournament Management
 
-**Versión actual: v1.1** — ver [CHANGELOG.md](CHANGELOG.md)
+**Versión actual: v1.2** — ver [CHANGELOG.md](CHANGELOG.md)
 
 Sistema profesional para la gestión de torneos de Padel, desarrollado para la **Liga Vibe 2026 by <span style="color:#10b981">Netx</span><span style="color:#ef4444">trust</span>**.
 

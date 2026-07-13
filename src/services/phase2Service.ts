@@ -6,6 +6,7 @@ import { sortStandingsWithTiebreakers } from '../utils/tiebreaker';
 import { FixtureEngine } from '../utils/fixtureEngine';
 import {
   buildSecondRoundGroups,
+  buildSecondRoundGroupDetails,
   mergeStandingStats,
   standingToCarryover,
   carryoverToStanding,
@@ -24,6 +25,7 @@ import type {
   Phase2Classification,
   Phase2GroupStanding,
   ClassifiedTeam,
+  SecondRoundGroupDetail,
 } from '../types';
 import type { GroupConfig } from '../utils/fixtureEngine';
 
@@ -265,6 +267,23 @@ export const phase2Service = {
     }
     const rules = resolvePhase2Rules(phase1Groups);
     return buildSecondRoundGroups(phase1Groups, rules);
+  },
+
+  /** Grupos de segunda rueda con origen fase 1 (trazabilidad visual). */
+  async previewSecondRoundGroupDetails(categoryId: string): Promise<SecondRoundGroupDetail[]> {
+    const phase1Groups = await this.getPhase1StandingsByGroup(categoryId);
+    if (phase1Groups.length === 0 || phase1Groups.every((g) => g.length === 0)) {
+      return [];
+    }
+    const rules = resolvePhase2Rules(phase1Groups);
+    return buildSecondRoundGroupDetails(phase1Groups, rules);
+  },
+
+  async getPhase1OriginMap(categoryId: string): Promise<Map<string, Phase1GroupStanding>> {
+    const groups = await this.getPhase1StandingsByGroup(categoryId);
+    const map = new Map<string, Phase1GroupStanding>();
+    groups.flat().forEach((s) => map.set(s.league_team_id, s));
+    return map;
   },
 
   async getParticipants(categoryId: string): Promise<Phase2Participant[]> {
@@ -715,18 +734,26 @@ export const phase2Service = {
   /** Clasificados a playoff como ClassifiedTeam con seed global 1..16. */
   async getPlayoffClassifiedTeams(categoryId: string): Promise<ClassifiedTeam[]> {
     const { classified } = await this.getPhase2Classification(categoryId);
+    const originMap = await this.getPhase1OriginMap(categoryId);
     const sorted = [...classified].sort(compareStandings);
-    return sorted.map((s, i) => ({
-      league_team_id: s.league_team_id,
-      team_name: s.team_name,
-      group_id: s.group_id,
-      group_name: s.group_name,
-      rank_in_group: s.rank_in_group,
-      overall_rank: i + 1,
-      points: s.points,
-      sets_diff: s.sets_diff,
-      games_diff: s.games_diff,
-    }));
+    return sorted.map((s, i) => {
+      const p1 = originMap.get(s.league_team_id);
+      return {
+        league_team_id: s.league_team_id,
+        team_name: s.team_name,
+        group_id: s.group_id,
+        group_name: s.group_name,
+        rank_in_group: s.rank_in_group,
+        overall_rank: i + 1,
+        points: s.points,
+        sets_diff: s.sets_diff,
+        games_diff: s.games_diff,
+        phase1_group_name: p1?.group_name ?? null,
+        phase1_rank_in_group: p1?.rank_in_group,
+        phase2_group_name: s.group_name,
+        phase2_rank_in_group: s.rank_in_group,
+      };
+    });
   },
 
   async recalculatePhase2Standings(categoryId: string): Promise<void> {

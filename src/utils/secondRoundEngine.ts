@@ -1,6 +1,6 @@
 import type { ComputedStanding } from './standingsCalculator';
 import type { GroupConfig } from './fixtureEngine';
-import type { LeagueTeam } from '../types';
+import type { LeagueTeam, SecondRoundGroupDetail } from '../types';
 import { recommendQualifiers, type BracketSize } from './playoffEngine';
 
 /** Standing de fase 1 con posición y grupo de origen. */
@@ -267,6 +267,38 @@ export function buildSecondRoundGroups(
     return keepSameGroupSecondRound(phase1ByGroup[0]);
   }
   return splitSingleGroupBySnakeDraft(phase1ByGroup[0], rules.groups_count);
+}
+
+/** Grupos de segunda rueda con trazabilidad fase 1 → fase 2. */
+export function buildSecondRoundGroupDetails(
+  phase1ByGroup: Phase1GroupStanding[][],
+  rules: Phase2RulesResolved
+): SecondRoundGroupDetail[] {
+  const groups = buildSecondRoundGroups(phase1ByGroup, rules);
+  const lookup = new Map<string, Phase1GroupStanding>();
+  phase1ByGroup.flat().forEach((s) => lookup.set(s.league_team_id, s));
+
+  return groups.map((g) => ({
+    groupName: g.groupName,
+    teams: g.teams
+      .map((t) => {
+        const p1 = lookup.get(t.id);
+        if (!p1) return null;
+        const slot = t.order_index ?? p1.rank_in_group;
+        return {
+          league_team_id: t.id,
+          team_name: t.team_name ?? p1.team_name,
+          phase1_group_name: p1.group_name,
+          phase1_rank_in_group: p1.rank_in_group,
+          phase1_points: p1.points,
+          destination_group_name: g.groupName,
+          position_slot: slot,
+          changed_group: p1.group_name !== g.groupName,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+      .sort((a, b) => a.position_slot - b.position_slot),
+  }));
 }
 
 /** Suma estadísticas de fase 1 (baseline) + partidos de fase 2. */

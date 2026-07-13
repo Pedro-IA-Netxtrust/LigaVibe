@@ -1022,24 +1022,54 @@ export default function Fixture() {
                                   </h4>
                                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {segundaRuedaMatches.map(m => (
-                                      <div key={m.id} className="p-4 bg-slate-900 border-2 border-indigo-500/20 rounded-2xl flex flex-col gap-3">
+                                      <div key={m.id} className="p-4 bg-slate-900 border-2 border-indigo-500/20 rounded-2xl flex flex-col gap-3 hover:border-indigo-500/40 transition-all group">
                                         <div className="flex justify-between items-center text-[10px] text-indigo-400/70 uppercase font-black tracking-widest">
                                           <span>{m.comment || `Fecha ${m.round}`}</span>
-                                          {m.status === 'jugado' ? 'FINAL' : 'PENDIENTE'}
+                                          {m.status === 'jugado' ? (
+                                            <span className="text-emerald-500 font-bold">FINALIZADO</span>
+                                          ) : m.match_date ? (
+                                            <span className="text-indigo-400 font-bold">PROGRAMADO</span>
+                                          ) : (
+                                            <span className="text-slate-600 font-bold">PENDIENTE</span>
+                                          )}
                                         </div>
-                                        <div className="flex flex-col gap-2">
+                                        <div className="flex flex-col">
                                           <div className={cn("text-sm font-bold italic", m.winner_id === m.team1_id ? "text-emerald-400" : "text-white")}>
                                             {m.team1?.team_name || 'TBD'}
                                           </div>
-                                          <div className="text-[10px] text-slate-600 font-bold px-2">VS</div>
+                                          {m.team1 && (
+                                            <div className="text-[9px] text-slate-500 font-normal uppercase mt-0.5">
+                                              {m.team1?.player1?.first_name} {m.team1?.player1?.last_name} / {m.team1?.player2?.first_name} {m.team1?.player2?.last_name}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="text-[10px] text-slate-600 font-bold px-2">VS</div>
+                                        <div className="flex flex-col">
                                           <div className={cn("text-sm font-bold italic", m.winner_id === m.team2_id ? "text-emerald-400" : "text-white")}>
                                             {m.team2?.team_name || 'TBD'}
                                           </div>
+                                          {m.team2 && (
+                                            <div className="text-[9px] text-slate-500 font-normal uppercase mt-0.5">
+                                              {m.team2?.player1?.first_name} {m.team2?.player1?.last_name} / {m.team2?.player2?.first_name} {m.team2?.player2?.last_name}
+                                            </div>
+                                          )}
                                         </div>
-                                        <div className="flex justify-between items-center pt-2 border-t border-slate-800">
-                                          <span className="text-[10px] text-slate-500 italic">#{m.id.slice(-4)}</span>
+                                        <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-800">
+                                          <div className="text-[10px] text-slate-400">
+                                            {m.match_date ? `${formatDate(m.match_date)} ${m.match_time}` : "Sin fecha"}
+                                            {m.court_name && <span className="text-indigo-400 ml-2">· {m.court_name}</span>}
+                                            {m.status === 'jugado' && (
+                                              <div className="text-indigo-400 font-bold mt-0.5">
+                                                {m.winner_id ? (
+                                                  `Resultado: ${m.s1_t1}-${m.s1_t2}${m.s2_t1 !== null && m.s2_t1 !== undefined ? `, ${m.s2_t1}-${m.s2_t2}` : ''}${m.s3_t1 !== null && m.s3_t1 !== undefined ? `, ${m.s3_t1}-${m.s3_t2}` : ''}`
+                                                ) : (
+                                                  'Sin puntos (0-0)'
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
                                           <Button size="sm" variant="secondary" className="h-8 text-xs font-bold" onClick={() => setModalMatch({ ...m })}>
-                                            Resultado
+                                            {m.status === 'jugado' || m.match_date || m.match_time || m.court_name ? 'Editar' : 'Cargar'}
                                           </Button>
                                         </div>
                                       </div>
@@ -1055,24 +1085,54 @@ export default function Fixture() {
                                   </h4>
                                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {playoffMatches.map(m => (
-                                      <div key={m.id} className="p-4 bg-slate-900 border-2 border-amber-500/20 rounded-2xl flex flex-col gap-3 shadow-lg shadow-amber-500/5">
+                                      <div key={m.id} className="p-4 bg-slate-900 border-2 border-amber-500/20 rounded-2xl flex flex-col gap-3 shadow-lg shadow-amber-500/5 hover:border-amber-500/40 transition-all group">
                                         <div className="flex justify-between items-center text-[10px] text-amber-500/70 uppercase font-black tracking-widest">
                                           <span>{m.comment || m.playoff_slot || 'Playoff'}</span>
-                                          {m.status === 'jugado' ? 'FINAL' : 'PENDIENTE'}
+                                          {m.status === 'jugado' ? (
+                                            <span className="text-emerald-500 font-bold">FINALIZADO</span>
+                                          ) : m.match_date ? (
+                                            <span className="text-indigo-400 font-bold">PROGRAMADO</span>
+                                          ) : (
+                                            <span className="text-slate-600 font-bold">PENDIENTE</span>
+                                          )}
                                         </div>
-                                        <div className="flex flex-col gap-2">
+                                        <div className="flex flex-col">
                                           <div className={cn("text-sm font-bold italic", m.winner_id === m.team1_id ? "text-emerald-400" : "text-white")}>
                                             {m.team1?.team_name || 'TBD'}
                                           </div>
-                                          <div className="text-[10px] text-slate-600 font-bold px-2">VS</div>
+                                          {m.team1 && m.team1.player1 && (
+                                            <div className="text-[9px] text-slate-500 font-normal uppercase mt-0.5">
+                                              {m.team1?.player1?.first_name} {m.team1?.player1?.last_name} / {m.team1?.player2?.first_name} {m.team1?.player2?.last_name}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="text-[10px] text-slate-600 font-bold px-2">VS</div>
+                                        <div className="flex flex-col">
                                           <div className={cn("text-sm font-bold italic", m.winner_id === m.team2_id ? "text-emerald-400" : "text-white")}>
                                             {m.team2?.team_name || 'TBD'}
                                           </div>
+                                          {m.team2 && m.team2.player1 && (
+                                            <div className="text-[9px] text-slate-500 font-normal uppercase mt-0.5">
+                                              {m.team2?.player1?.first_name} {m.team2?.player1?.last_name} / {m.team2?.player2?.first_name} {m.team2?.player2?.last_name}
+                                            </div>
+                                          )}
                                         </div>
-                                        <div className="flex justify-between items-center pt-2 border-t border-slate-800">
-                                          <span className="text-[10px] text-slate-500 italic">#{m.id.slice(-4)}</span>
+                                        <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-800">
+                                          <div className="text-[10px] text-slate-400">
+                                            {m.match_date ? `${formatDate(m.match_date)} ${m.match_time}` : "Sin fecha"}
+                                            {m.court_name && <span className="text-indigo-400 ml-2">· {m.court_name}</span>}
+                                            {m.status === 'jugado' && (
+                                              <div className="text-indigo-400 font-bold mt-0.5">
+                                                {m.winner_id ? (
+                                                  `Resultado: ${m.s1_t1}-${m.s1_t2}${m.s2_t1 !== null && m.s2_t1 !== undefined ? `, ${m.s2_t1}-${m.s2_t2}` : ''}${m.s3_t1 !== null && m.s3_t1 !== undefined ? `, ${m.s3_t1}-${m.s3_t2}` : ''}`
+                                                ) : (
+                                                  'Sin puntos (0-0)'
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
                                           <Button size="sm" variant="secondary" className="h-8 text-xs font-bold" onClick={() => setModalMatch({ ...m })}>
-                                            Resultado
+                                            {m.status === 'jugado' || m.match_date || m.match_time || m.court_name ? 'Editar' : 'Cargar'}
                                           </Button>
                                         </div>
                                       </div>
@@ -1092,7 +1152,6 @@ export default function Fixture() {
                   <SegundaRuedaPanel
                     categoryId={selectedCategoryId}
                     isCategoryClosed={status?.state === 'closed'}
-                    allTeams={categoryTeams}
                     onReloadMatches={loadStatusAndData}
                     onError={(msg) => setError(msg || null)}
                   />
