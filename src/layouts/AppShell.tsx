@@ -19,9 +19,13 @@ export function AppShell({ children, activePage }: AppShellProps) {
             ? 'Categorías'
             : activePage === 'fixture'
               ? 'Fixture'
-              : activePage === 'posiciones'
-                ? 'Posiciones'
-                : activePage.replace(/-/g, ' ');
+              : activePage === 'segunda-rueda'
+                ? 'Segunda Rueda'
+                : activePage === 'playoffs'
+                  ? 'Playoffs'
+                  : activePage === 'posiciones'
+                    ? 'Posiciones'
+                    : activePage.replace(/-/g, ' ');
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-900 font-sans">

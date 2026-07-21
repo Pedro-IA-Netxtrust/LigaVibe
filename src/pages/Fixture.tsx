@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, Button } from '../components/ui/Base';
 import { Table, TableRow, TableCell } from '../components/ui/Table';
 import { LoadingState } from '../components/ui/States';
@@ -33,8 +33,6 @@ import { computeStandingsFromMatches } from '../utils/standingsCalculator';
 import { phaseService } from '../services/phaseService';
 import { PhaseCloseModal } from '../components/playoff/PhaseCloseModal';
 import { TieResolveModal, TieTeamRow } from '../components/playoff/TieResolveModal';
-import { SegundaRuedaPanel } from '../components/segundaRueda/SegundaRuedaPanel';
-import { PlayoffPanel } from '../components/playoff/PlayoffPanel';
 import { tiebreakerService } from '../services/tiebreakerService';
 import { PHASE_PLAYOFF, PHASE_SECOND_ROUND } from '../constants/phases';
 import type {
@@ -45,6 +43,7 @@ import type {
 type PreviewState = { groups: GroupConfig[]; matches: Partial<any>[] };
 
 export default function Fixture() {
+  const navigate = useNavigate();
   const { categories, loading: loadingCats } = useCategories();
   const [selectedCategoryId, setSelectedCategoryId] = React.useState<string>('');
   const [status, setStatus] = React.useState<any>(null);
@@ -55,7 +54,7 @@ export default function Fixture() {
   const [groupSize, setGroupSize] = React.useState<number>(3);
   const [previewTeams, setPreviewTeams] = React.useState<LeagueTeam[]>([]);
   const [isDoubleRound, setIsDoubleRound] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<'structure' | 'played' | 'segunda-rueda' | 'playoffs'>('structure');
+  const [activeTab, setActiveTab] = React.useState<'structure' | 'played'>('structure');
   const [selectedGroupKey, setSelectedGroupKey] = React.useState<string>('__all__');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
   const [modalMatch, setModalMatch] = React.useState<MatchRow | null>(null);
@@ -487,11 +486,21 @@ export default function Fixture() {
           )}
           {status?.state === 'closed' && (
             <>
-              <Button variant="secondary" size="md" onClick={() => setActiveTab('segunda-rueda')} disabled={busy}>
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => navigate(`/segunda-rueda?category=${selectedCategoryId}`)}
+                disabled={busy}
+              >
                 <LayoutGrid size={18} className="mr-2" />
                 Segunda rueda
               </Button>
-              <Button variant="primary" size="md" onClick={() => setActiveTab('playoffs')} disabled={busy}>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => navigate(`/playoffs?category=${selectedCategoryId}`)}
+                disabled={busy}
+              >
                 <Trophy size={18} className="mr-2" />
                 Playoffs
               </Button>
@@ -824,55 +833,42 @@ export default function Fixture() {
                     {activeTab === 'played' && <motion.div layoutId="subtab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
                   </button>
 
-                  <button
-                    onClick={() => setActiveTab('segunda-rueda')}
-                    className={cn(
-                      'px-6 py-3 text-sm font-medium relative',
-                      activeTab === 'segunda-rueda' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <LayoutGrid size={16} /> Segunda rueda
-                    </div>
-                    {activeTab === 'segunda-rueda' && <motion.div layoutId="subtab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('playoffs')}
-                    className={cn(
-                      'px-6 py-3 text-sm font-medium relative',
-                      activeTab === 'playoffs' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Trophy size={16} /> Playoffs
-                    </div>
-                    {activeTab === 'playoffs' && <motion.div layoutId="subtab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500" />}
-                  </button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={selectedGroupKey}
-                      onChange={(e) => setSelectedGroupKey(e.target.value)}
-                      className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                    >
-                      <option value="__all__">Todos los grupos</option>
-                      {Array.from(new Set(viewMatches.map(m => m.league_group_id || '__liga__')))
-                        .map(gid => {
-                          const gname = gid === '__liga__' 
-                            ? 'Liga Única' 
-                            : (viewMatches.find(m => m.league_group_id === gid)?.group?.group_name || 'Grupo');
-                          return { id: gid, name: gname };
-                        })
-                        .sort((a, b) => a.name.localeCompare(b.name))
-                        .map(g => {
-                          if (g.id === '__liga__' && !viewMatches.some(m => !m.league_group_id)) return null;
-                          return <option key={g.id} value={g.id}>{g.name}</option>;
-                        })}
-                    </select>
-                  </div>
+                  {(() => {
+                    const uniqueGroups = Array.from(new Set(viewMatches.map(m => m.league_group_id || '__liga__')));
+                    if (uniqueGroups.length > 1) {
+                      return (
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={selectedGroupKey}
+                            onChange={(e) => setSelectedGroupKey(e.target.value)}
+                            className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold"
+                          >
+                            <option value="__all__">Todos los grupos</option>
+                            {uniqueGroups
+                              .map(gid => {
+                                const gname = gid === '__liga__' 
+                                  ? 'Liga Única' 
+                                  : (viewMatches.find(m => m.league_group_id === gid)?.group?.group_name || 'Grupo');
+                                return { id: gid, name: gname };
+                              })
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map(g => {
+                                if (g.id === '__liga__' && !viewMatches.some(m => !m.league_group_id)) return null;
+                                return <option key={g.id} value={g.id}>{g.name}</option>;
+                              })}
+                          </select>
+                        </div>
+                      );
+                    }
+                    return (
+                      <span className="text-xs bg-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-full border border-indigo-500/20 uppercase font-black tracking-wider">
+                        {uniqueGroups[0] === '__liga__' ? 'Liga única · Todos contra todos' : 'Grupo único'}
+                      </span>
+                    );
+                  })()}
 
                   <div className="relative flex-1 md:w-64">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
@@ -955,12 +951,6 @@ export default function Fixture() {
                         {(() => {
                           const gMatches = filtered.filter(m => (m.group?.group_name || 'Liga Única') === gName);
                           const phase1Matches = gMatches.filter(m => m.phase === 1 || !m.phase);
-                          const segundaRuedaMatches = gMatches.filter(
-                            m => m.phase === PHASE_SECOND_ROUND && !m.playoff_slot
-                          );
-                          const playoffMatches = gMatches.filter(
-                            m => m.phase === PHASE_PLAYOFF || (m.phase === PHASE_SECOND_ROUND && m.playoff_slot)
-                          );
                           
                           return (
                             <div className="space-y-8">
@@ -1015,131 +1005,7 @@ export default function Fixture() {
                                 </Card>
                               )}
 
-                              {segundaRuedaMatches.length > 0 && (
-                                <div className="space-y-4">
-                                  <h4 className="text-lg font-bold text-indigo-400 flex items-center gap-2">
-                                    <LayoutGrid size={20} /> Segunda rueda
-                                  </h4>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {segundaRuedaMatches.map(m => (
-                                      <div key={m.id} className="p-4 bg-slate-900 border-2 border-indigo-500/20 rounded-2xl flex flex-col gap-3 hover:border-indigo-500/40 transition-all group">
-                                        <div className="flex justify-between items-center text-[10px] text-indigo-400/70 uppercase font-black tracking-widest">
-                                          <span>{m.comment || `Fecha ${m.round}`}</span>
-                                          {m.status === 'jugado' ? (
-                                            <span className="text-emerald-500 font-bold">FINALIZADO</span>
-                                          ) : m.match_date ? (
-                                            <span className="text-indigo-400 font-bold">PROGRAMADO</span>
-                                          ) : (
-                                            <span className="text-slate-600 font-bold">PENDIENTE</span>
-                                          )}
-                                        </div>
-                                        <div className="flex flex-col">
-                                          <div className={cn("text-sm font-bold italic", m.winner_id === m.team1_id ? "text-emerald-400" : "text-white")}>
-                                            {m.team1?.team_name || 'TBD'}
-                                          </div>
-                                          {m.team1 && (
-                                            <div className="text-[9px] text-slate-500 font-normal uppercase mt-0.5">
-                                              {m.team1?.player1?.first_name} {m.team1?.player1?.last_name} / {m.team1?.player2?.first_name} {m.team1?.player2?.last_name}
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="text-[10px] text-slate-600 font-bold px-2">VS</div>
-                                        <div className="flex flex-col">
-                                          <div className={cn("text-sm font-bold italic", m.winner_id === m.team2_id ? "text-emerald-400" : "text-white")}>
-                                            {m.team2?.team_name || 'TBD'}
-                                          </div>
-                                          {m.team2 && (
-                                            <div className="text-[9px] text-slate-500 font-normal uppercase mt-0.5">
-                                              {m.team2?.player1?.first_name} {m.team2?.player1?.last_name} / {m.team2?.player2?.first_name} {m.team2?.player2?.last_name}
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-800">
-                                          <div className="text-[10px] text-slate-400">
-                                            {m.match_date ? `${formatDate(m.match_date)} ${m.match_time}` : "Sin fecha"}
-                                            {m.court_name && <span className="text-indigo-400 ml-2">· {m.court_name}</span>}
-                                            {m.status === 'jugado' && (
-                                              <div className="text-indigo-400 font-bold mt-0.5">
-                                                {m.winner_id ? (
-                                                  `Resultado: ${m.s1_t1}-${m.s1_t2}${m.s2_t1 !== null && m.s2_t1 !== undefined ? `, ${m.s2_t1}-${m.s2_t2}` : ''}${m.s3_t1 !== null && m.s3_t1 !== undefined ? `, ${m.s3_t1}-${m.s3_t2}` : ''}`
-                                                ) : (
-                                                  'Sin puntos (0-0)'
-                                                )}
-                                              </div>
-                                            )}
-                                          </div>
-                                          <Button size="sm" variant="secondary" className="h-8 text-xs font-bold" onClick={() => setModalMatch({ ...m })}>
-                                            {m.status === 'jugado' || m.match_date || m.match_time || m.court_name ? 'Editar' : 'Cargar'}
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
 
-                              {playoffMatches.length > 0 && (
-                                <div className="space-y-4">
-                                  <h4 className="text-lg font-bold text-amber-400 flex items-center gap-2">
-                                    <Trophy size={20} /> Playoffs
-                                  </h4>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {playoffMatches.map(m => (
-                                      <div key={m.id} className="p-4 bg-slate-900 border-2 border-amber-500/20 rounded-2xl flex flex-col gap-3 shadow-lg shadow-amber-500/5 hover:border-amber-500/40 transition-all group">
-                                        <div className="flex justify-between items-center text-[10px] text-amber-500/70 uppercase font-black tracking-widest">
-                                          <span>{m.comment || m.playoff_slot || 'Playoff'}</span>
-                                          {m.status === 'jugado' ? (
-                                            <span className="text-emerald-500 font-bold">FINALIZADO</span>
-                                          ) : m.match_date ? (
-                                            <span className="text-indigo-400 font-bold">PROGRAMADO</span>
-                                          ) : (
-                                            <span className="text-slate-600 font-bold">PENDIENTE</span>
-                                          )}
-                                        </div>
-                                        <div className="flex flex-col">
-                                          <div className={cn("text-sm font-bold italic", m.winner_id === m.team1_id ? "text-emerald-400" : "text-white")}>
-                                            {m.team1?.team_name || 'TBD'}
-                                          </div>
-                                          {m.team1 && m.team1.player1 && (
-                                            <div className="text-[9px] text-slate-500 font-normal uppercase mt-0.5">
-                                              {m.team1?.player1?.first_name} {m.team1?.player1?.last_name} / {m.team1?.player2?.first_name} {m.team1?.player2?.last_name}
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="text-[10px] text-slate-600 font-bold px-2">VS</div>
-                                        <div className="flex flex-col">
-                                          <div className={cn("text-sm font-bold italic", m.winner_id === m.team2_id ? "text-emerald-400" : "text-white")}>
-                                            {m.team2?.team_name || 'TBD'}
-                                          </div>
-                                          {m.team2 && m.team2.player1 && (
-                                            <div className="text-[9px] text-slate-500 font-normal uppercase mt-0.5">
-                                              {m.team2?.player1?.first_name} {m.team2?.player1?.last_name} / {m.team2?.player2?.first_name} {m.team2?.player2?.last_name}
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="flex justify-between items-end mt-2 pt-2 border-t border-slate-800">
-                                          <div className="text-[10px] text-slate-400">
-                                            {m.match_date ? `${formatDate(m.match_date)} ${m.match_time}` : "Sin fecha"}
-                                            {m.court_name && <span className="text-indigo-400 ml-2">· {m.court_name}</span>}
-                                            {m.status === 'jugado' && (
-                                              <div className="text-indigo-400 font-bold mt-0.5">
-                                                {m.winner_id ? (
-                                                  `Resultado: ${m.s1_t1}-${m.s1_t2}${m.s2_t1 !== null && m.s2_t1 !== undefined ? `, ${m.s2_t1}-${m.s2_t2}` : ''}${m.s3_t1 !== null && m.s3_t1 !== undefined ? `, ${m.s3_t1}-${m.s3_t2}` : ''}`
-                                                ) : (
-                                                  'Sin puntos (0-0)'
-                                                )}
-                                              </div>
-                                            )}
-                                          </div>
-                                          <Button size="sm" variant="secondary" className="h-8 text-xs font-bold" onClick={() => setModalMatch({ ...m })}>
-                                            {m.status === 'jugado' || m.match_date || m.match_time || m.court_name ? 'Editar' : 'Cargar'}
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           );
                         })()}
@@ -1147,24 +1013,6 @@ export default function Fixture() {
                     ));
                   })()}
                 </div>
-              ) : activeTab === 'segunda-rueda' ? (
-                selectedCategoryId ? (
-                  <SegundaRuedaPanel
-                    categoryId={selectedCategoryId}
-                    isCategoryClosed={status?.state === 'closed'}
-                    onReloadMatches={loadStatusAndData}
-                    onError={(msg) => setError(msg || null)}
-                  />
-                ) : null
-              ) : activeTab === 'playoffs' ? (
-                selectedCategoryId ? (
-                  <PlayoffPanel
-                    categoryId={selectedCategoryId}
-                    isCategoryClosed={status?.state === 'closed'}
-                    onEditMatch={(m) => setModalMatch(m)}
-                    onError={(msg) => setError(msg || null)}
-                  />
-                ) : null
               ) : (
                 <div className="space-y-6">
                   {(() => {

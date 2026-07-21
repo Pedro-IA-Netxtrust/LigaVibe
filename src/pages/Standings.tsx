@@ -35,9 +35,10 @@ export default function Standings() {
       const st = await fixtureService.getStatus(categoryId);
       setFixtureState(st.state);
       const m = await resultService.getMatchesForCategory(categoryId);
-      setMatches(m);
+      const phase1Matches = (m || []).filter(match => match.phase === 1 || !match.phase);
+      setMatches(phase1Matches);
       const names: Record<string, string> = {};
-      m.forEach((row: any) => {
+      phase1Matches.forEach((row: any) => {
         if (row.team1?.team_name) names[row.team1_id] = row.team1.team_name;
         if (row.team2?.team_name) names[row.team2_id] = row.team2.team_name;
       });
@@ -216,18 +217,26 @@ export default function Standings() {
 
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <div className="flex items-center gap-3">
-          <label className="text-sm text-slate-400">Grupo</label>
-          <select
-            value={groupKey}
-            onChange={(e) => setGroupKey(e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200"
-          >
-            {groupOptions.map((o) => (
-              <option key={o.key} value={o.key}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          {groupOptions.length > 2 ? (
+            <>
+              <label className="text-sm text-slate-400 font-bold">Filtro por Grupo</label>
+              <select
+                value={groupKey}
+                onChange={(e) => setGroupKey(e.target.value)}
+                className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold"
+              >
+                {groupOptions.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <span className="text-xs bg-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-full border border-indigo-500/20 uppercase font-black tracking-wider">
+              {groupOptions.length === 2 && groupOptions[1].key === '__liga__' ? 'Liga única · Todos contra todos' : 'Grupo único'}
+            </span>
+          )}
           {groupKey !== '__all__' && groupKey !== '__liga__' && standingsByGroup[groupKey]?.rows.length > 0 && (
             <Button
               variant="secondary"

@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppShell } from './layouts/AppShell';
@@ -11,6 +6,8 @@ import Players from './pages/Players';
 import Categories from './pages/Categories';
 import Registrations from './pages/Registrations';
 import Fixture from './pages/Fixture';
+import SecondRound from './pages/SecondRound';
+import Playoffs from './pages/Playoffs';
 import Standings from './pages/Standings';
 import Schedule from './pages/Schedule';
 
@@ -33,6 +30,8 @@ function AppRoutes() {
         <Route path="/categorias" element={<Categories />} />
         <Route path="/inscripciones" element={<Registrations />} />
         <Route path="/fixture" element={<Fixture />} />
+        <Route path="/segunda-rueda" element={<SecondRound />} />
+        <Route path="/playoffs" element={<Playoffs />} />
         <Route path="/programacion" element={<Schedule />} />
         <Route path="/posiciones" element={<Standings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -9,7 +9,8 @@ import {
   Calendar,
   ListOrdered,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LayoutGrid
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { NetxtrustBrand } from '../components/ui/NetxtrustBrand';
@@ -33,6 +34,8 @@ const navGroups = [
     items: [
       { id: 'inscripciones', path: '/inscripciones', label: 'Inscripciones', icon: UserPlus },
       { id: 'fixture', path: '/fixture', label: 'Fixture', icon: ListOrdered },
+      { id: 'segunda-rueda', path: '/segunda-rueda', label: 'Segunda Rueda', icon: LayoutGrid },
+      { id: 'playoffs', path: '/playoffs', label: 'Playoffs', icon: Trophy },
       { id: 'programacion', path: '/programacion', label: 'Programación', icon: Calendar },
       { id: 'posiciones', path: '/posiciones', label: 'Posiciones', icon: Trophy }
     ]
