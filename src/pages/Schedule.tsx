@@ -18,6 +18,7 @@ export default function Schedule() {
   const [searchQuery, setSearchQuery] = React.useState<string>('');
   const [selectedGroupKey, setSelectedGroupKey] = React.useState<string>('all');
   const [selectedStatus, setSelectedStatus] = React.useState<string>('all');
+  const [selectedPhase, setSelectedPhase] = React.useState<string>('all');
   const [modalMatch, setModalMatch] = React.useState<MatchRow | null>(null);
 
   React.useEffect(() => {
@@ -56,6 +57,12 @@ export default function Schedule() {
         if (m.status === 'jugado' || (!m.match_date && !m.match_time)) return false;
       } else if (selectedStatus === 'unscheduled') {
         if (m.status === 'jugado' || m.match_date || m.match_time) return false;
+      }
+
+      // Filter by Phase
+      if (selectedPhase !== 'all') {
+        const matchPhase = m.phase || 1;
+        if (String(matchPhase) !== selectedPhase) return false;
       }
 
       // Filter by Group
@@ -100,7 +107,7 @@ export default function Schedule() {
       const courtB = b.court_name || '';
       return courtA.localeCompare(courtB);
     });
-  }, [viewMatches, selectedGroupKey, selectedStatus, searchQuery]);
+  }, [viewMatches, selectedGroupKey, selectedStatus, selectedPhase, searchQuery]);
 
   return (
     <div className="space-y-8">
@@ -160,11 +167,25 @@ export default function Schedule() {
         <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-6">
             <div className="flex items-center gap-3">
+              <label className="text-sm text-slate-400 font-medium">Fase</label>
+              <select
+                value={selectedPhase}
+                onChange={(e) => setSelectedPhase(e.target.value)}
+                className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
+              >
+                <option value="all">Todas las fases</option>
+                <option value="1">1ª Rueda</option>
+                <option value="2">2ª Rueda</option>
+                <option value="3">Playoffs</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-3">
               <label className="text-sm text-slate-400 font-medium">Estado</label>
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
               >
                 <option value="all">Todos los partidos</option>
                 <option value="scheduled">Programados</option>
@@ -174,28 +195,40 @@ export default function Schedule() {
               </select>
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="text-sm text-slate-400 font-medium">Grupo</label>
-              <select
-                value={selectedGroupKey}
-                onChange={(e) => setSelectedGroupKey(e.target.value)}
-                className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500/20 outline-none"
-              >
-                <option value="all">Todos los grupos</option>
-                {Array.from(new Set(viewMatches.map(m => m.league_group_id || '__liga__')))
-                  .map(gid => {
-                    const gname = gid === '__liga__' 
-                      ? 'Liga Única' 
-                      : (viewMatches.find(m => m.league_group_id === gid)?.group?.group_name || 'Grupo');
-                    return { id: gid, name: gname };
-                  })
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map(g => {
-                    if (g.id === '__liga__' && !viewMatches.some(m => !m.league_group_id)) return null;
-                    return <option key={g.id} value={g.id}>{g.name}</option>;
-                  })}
-              </select>
-            </div>
+            {(() => {
+              const uniqueGroups = Array.from(new Set(viewMatches.map(m => m.league_group_id || '__liga__')));
+              if (uniqueGroups.length > 1) {
+                return (
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm text-slate-400 font-medium">Grupo</label>
+                    <select
+                      value={selectedGroupKey}
+                      onChange={(e) => setSelectedGroupKey(e.target.value)}
+                      className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
+                    >
+                      <option value="all">Todos los grupos</option>
+                      {uniqueGroups
+                        .map(gid => {
+                          const gname = gid === '__liga__' 
+                            ? 'Liga Única' 
+                            : (viewMatches.find(m => m.league_group_id === gid)?.group?.group_name || 'Grupo');
+                          return { id: gid, name: gname };
+                        })
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(g => {
+                          if (g.id === '__liga__' && !viewMatches.some(m => !m.league_group_id)) return null;
+                          return <option key={g.id} value={g.id}>{g.name}</option>;
+                        })}
+                    </select>
+                  </div>
+                );
+              }
+              return (
+                <span className="text-xs bg-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-full border border-indigo-500/20 uppercase font-black tracking-wider">
+                  {uniqueGroups[0] === '__liga__' ? 'Liga única · Todos contra todos' : 'Grupo único'}
+                </span>
+              );
+            })()}
           </div>
 
           {busy ? (
@@ -207,10 +240,17 @@ export default function Schedule() {
               {searchQuery || selectedGroupKey !== 'all' ? 'No coincide con la búsqueda o filtro.' : 'No hay partidos pendientes.'}
             </p>
           ) : (
-            <Table headers={['Grupo', 'Fecha', 'Pareja 1', '', 'Pareja 2', 'Programación Actual', 'Acción']}>
+            <Table headers={['Grupo / Fase', 'Fecha', 'Pareja 1', '', 'Pareja 2', 'Programación Actual', 'Acción']}>
               {filteredMatches.map((m) => (
                 <TableRow key={m.id}>
-                  <TableCell className="font-bold text-indigo-400">{m.group?.group_name || 'Liga'}</TableCell>
+                  <TableCell className="font-bold text-indigo-400 flex flex-col gap-1 items-start">
+                    <span>{m.group?.group_name || 'Liga'}</span>
+                    {m.phase && m.phase > 1 && (
+                      <span className="text-[9px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded border border-indigo-500/20 w-max uppercase font-black tracking-widest">
+                        {m.phase === 2 ? '2ª Rueda' : 'Playoffs'}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-slate-500 font-mono">F{m.round}</TableCell>
                   <TableCell className="py-4">
                     <div className="font-bold text-white italic">{m.team1?.team_name}</div>

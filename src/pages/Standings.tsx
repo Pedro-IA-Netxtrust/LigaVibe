@@ -22,6 +22,9 @@ export default function Standings() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [modalMatch, setModalMatch] = React.useState<MatchRow | null>(null);
+  const [phase, setPhase] = React.useState<number>(1);
+  const [hasPhase2, setHasPhase2] = React.useState(false);
+  const [phase2Standings, setPhase2Standings] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     if (categories.length && !categoryId) setCategoryId(categories[0].id);
@@ -35,20 +38,39 @@ export default function Standings() {
       const st = await fixtureService.getStatus(categoryId);
       setFixtureState(st.state);
       const m = await resultService.getMatchesForCategory(categoryId);
-      const phase1Matches = (m || []).filter(match => match.phase === 1 || !match.phase);
-      setMatches(phase1Matches);
-      const names: Record<string, string> = {};
-      phase1Matches.forEach((row: any) => {
-        if (row.team1?.team_name) names[row.team1_id] = row.team1.team_name;
-        if (row.team2?.team_name) names[row.team2_id] = row.team2.team_name;
-      });
-      setTeamNames(names);
+      
+      const hasP2 = (m || []).some(match => match.phase === 2);
+      setHasPhase2(hasP2);
+
+      // Automatically fall back to phase 1 if phase 2 was selected but is not generated anymore
+      const activePhase = (phase === 2 && hasP2) ? 2 : 1;
+      if (activePhase !== phase) {
+        setPhase(activePhase);
+      }
+
+      if (activePhase === 1) {
+        const phase1Matches = (m || []).filter(match => match.phase === 1 || !match.phase);
+        setMatches(phase1Matches);
+        const names: Record<string, string> = {};
+        phase1Matches.forEach((row: any) => {
+          if (row.team1?.team_name) names[row.team1_id] = row.team1.team_name;
+          if (row.team2?.team_name) names[row.team2_id] = row.team2.team_name;
+        });
+        setTeamNames(names);
+      } else {
+        const phase2Matches = (m || []).filter(match => match.phase === 2);
+        setMatches(phase2Matches);
+
+        const { phase2Service } = await import('../services/phase2Service');
+        const p2Standings = await phase2Service.previewPhase2Standings(categoryId);
+        setPhase2Standings(p2Standings);
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [categoryId]);
+  }, [categoryId, phase]);
 
   React.useEffect(() => {
     load();
@@ -86,6 +108,47 @@ export default function Standings() {
   const standingsByGroup = React.useMemo(() => {
     const groups: Record<string, { label: string; rows: ComputedStanding[] }> = {};
     
+    if (phase === 2) {
+      phase2Standings.forEach((s) => {
+        const gid = s.group_id || '__liga__';
+        if (!groups[gid]) {
+          groups[gid] = {
+            label: s.group_name || 'Segunda Rueda',
+            rows: []
+          };
+        }
+        groups[gid].rows.push({
+          league_team_id: s.league_team_id,
+          team_name: s.team_name,
+          played: s.played,
+          won: s.won,
+          lost: s.lost,
+          won2_0: 0,
+          won2_1: 0,
+          points: s.points,
+          sets_for: s.sets_for,
+          sets_against: s.sets_against,
+          games_for: s.games_for,
+          games_against: s.games_against
+        });
+      });
+
+      // Sort rows in each group by points/sets/games diff
+      Object.keys(groups).forEach((gid) => {
+        groups[gid].rows.sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          const dsA = a.sets_for - a.sets_against;
+          const dsB = b.sets_for - b.sets_against;
+          if (dsB !== dsA) return dsB - dsA;
+          const dgA = a.games_for - a.games_against;
+          const dgB = b.games_for - b.games_against;
+          return dgB - dgA;
+        });
+      });
+
+      return groups;
+    }
+
     // Identify all groups present
     matches.forEach(m => {
       const gid = m.league_group_id || '__liga__';
@@ -121,7 +184,7 @@ export default function Standings() {
     });
 
     return groups;
-  }, [matches, teamNames]);
+  }, [matches, teamNames, phase, phase2Standings]);
 
   const displayedGroups = React.useMemo(() => {
     type GroupEntry = { id: string; label: string; rows: ComputedStanding[] };
@@ -145,7 +208,12 @@ export default function Standings() {
     setLoading(true);
     setError(null);
     try {
-      await resultService.recalculateStandings(categoryId);
+      if (phase === 1) {
+        await resultService.recalculateStandings(categoryId);
+      } else {
+        const { phase2Service } = await import('../services/phase2Service');
+        await phase2Service.recalculatePhase2Standings(categoryId);
+      }
       await load();
     } catch (e: any) {
       setError(e.message);
@@ -200,6 +268,38 @@ export default function Standings() {
             )}
           </button>
         ))}
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center px-1">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+          Tabla de Posiciones — {phase === 1 ? '1ª Rueda' : '2ª Rueda'}
+        </h3>
+        {hasPhase2 && (
+          <div className="flex gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl">
+            <button
+              onClick={() => { setPhase(1); setGroupKey('__all__'); }}
+              className={cn(
+                'px-4 py-1.5 text-xs font-bold rounded-lg transition-all',
+                phase === 1
+                  ? 'bg-indigo-500 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              )}
+            >
+              1ª Rueda
+            </button>
+            <button
+              onClick={() => { setPhase(2); setGroupKey('__all__'); }}
+              className={cn(
+                'px-4 py-1.5 text-xs font-bold rounded-lg transition-all',
+                phase === 2
+                  ? 'bg-indigo-500 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              )}
+            >
+              2ª Rueda
+            </button>
+          </div>
+        )}
       </div>
 
       {!canEdit && !loading && (
